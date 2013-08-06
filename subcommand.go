@@ -51,7 +51,7 @@ func NewParser(program string) *Parser {
 //AddCommand inserts a new subcommand to the parser
 func (parser *Parser) AddCommand(name string, fn func(string)) (command *Command, err error) {
 	if _, exists := parser.Commands[name]; exists {
-		return nil, fmt.Errorf("Command '%s' already exists ", command)
+		return nil, fmt.Errorf("Command '%s' already exists ", name)
 	}
 	//create the command
 	command = new(Command)
