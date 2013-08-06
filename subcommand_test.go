@@ -228,7 +228,7 @@ func TestParseUnknown(t *testing.T) {
 	})
 	leftOvers, _ := parser.Parse([]string{"paco", "pepe"})
 	if len(leftOvers) != 2 {
-		t.Error("the parsing leftovers size isn't 2 (%v)", leftOvers)
+		t.Errorf("the parsing leftovers size isn't 2 (%v)", leftOvers)
 		return
 	}
 
