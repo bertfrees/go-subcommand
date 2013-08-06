@@ -3,7 +3,6 @@
 package subcommand
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -52,7 +51,7 @@ func NewParser(program string) *Parser {
 //AddCommand inserts a new subcommand to the parser
 func (parser *Parser) AddCommand(name string, fn func(string)) (command *Command, err error) {
 	if _, exists := parser.Commands[name]; exists {
-		return nil, errors.New(fmt.Sprintf("Command '%s' already exists ", command))
+		return nil, fmt.Errorf("Command '%s' already exists ", command)
 	}
 	//create the command
 	command = new(Command)
@@ -81,12 +80,12 @@ func (command *Command) AddFlag(long string, short string, description string, f
 		return nil, err
 	}
 	if _, exists := command.innerFlagsLong[flag.Long]; exists {
-		return nil, errors.New(fmt.Sprintf("Flag '%s' already exists ", long))
+		return nil, fmt.Errorf("Flag '%s' already exists ", long)
 	}
 	command.innerFlagsLong[flag.Long] = flag
 
 	if _, exists := command.innerFlagsShort[flag.Short]; exists {
-		return nil, errors.New(fmt.Sprintf("Flag '%s' already exists ", long))
+		return nil, fmt.Errorf("Flag '%s' already exists ", long)
 	}
 	command.innerFlagsShort[flag.Short] = flag
 	return flag, nil
@@ -146,13 +145,13 @@ func (parser *Parser) Parse(args []string) (leftOvers []string, err error) {
 			}
 			//not present
 			if !ok {
-				err = errors.New(fmt.Sprintf("%v is not a valid flag for %v", arg, currentCommand.getName()))
+				err = fmt.Errorf("%v is not a valid flag for %v", arg, currentCommand.getName())
 				//show help?
 				return
 			}
 			if opt.Type == Option { //option
 				if i+1 >= len(args) {
-					err = errors.New(fmt.Sprintf("No value for option %v", arg))
+					err = fmt.Errorf("No value for option %v", arg)
 					return
 				}
 				i++
@@ -165,7 +164,7 @@ func (parser *Parser) Parse(args []string) (leftOvers []string, err error) {
 		} else {
 			//_,isParser:=currentCommand.(Parser)
 			if ok, flag := checkVisited(visited, currentCommand.getFlags()); !ok {
-				err = errors.New(fmt.Sprintf("%v was not found and is mandatory for %v", flag, currentCommand))
+				err = fmt.Errorf("%v was not found and is mandatory for %v", flag, currentCommand)
 				return
 			}
 			cmd, ok := parser.Commands[arg]
@@ -230,13 +229,13 @@ func getFlagType(flag string) (fType FlagType, err error) {
 	l := len(parts)
 	switch {
 	case len(parts[0]) == 0:
-		return -1, errors.New(fmt.Sprintf("Flag is empty"))
+		return -1, fmt.Errorf("Flag is empty")
 	case l == 1:
 		return Switch, err
 	case l == 2:
 		return Option, err
 	default:
-		return -1, errors.New(fmt.Sprintf("Flag '%s' has more than 2  words", flag))
+		return -1, fmt.Errorf("Flag '%s' has more than 2  words", flag)
 	}
 }
 
@@ -244,7 +243,7 @@ func getFlagType(flag string) (fType FlagType, err error) {
 func getFlagLonfDefinition(flag string) (name string, err error) {
 	name = strings.Split(flag, " ")[0]
 	if !strings.HasPrefix(name, "--") {
-		return "", errors.New(fmt.Sprintf("Flag '%s' has to start by --", flag))
+		return "", fmt.Errorf("Flag '%s' has to start by --", flag)
 	}
 	return name, nil
 }
@@ -253,9 +252,9 @@ func getFlagLonfDefinition(flag string) (name string, err error) {
 func getFlagShortDefinition(flag string) (name string, err error) {
 	parts := strings.Split(flag, " ")
 	if len(parts) > 1 {
-		return "", errors.New(fmt.Sprintf("Short flag must have only one word", flag))
+		return "", fmt.Errorf("Short flag must have only one word %s", flag)
 	} else if !strings.HasPrefix(parts[0], "-") {
-		return "", errors.New(fmt.Sprintf("Flag '%s' has to start by -", flag))
+		return "", fmt.Errorf("Flag '%s' has to start by -", flag)
 	}
 	return parts[0], nil
 }
