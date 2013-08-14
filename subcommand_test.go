@@ -4,25 +4,8 @@ import (
 	"testing"
 )
 
-var assert string = "expected %v but was %v"
 var emptyFn = func(value string) {}
 
-func assertEquals(t *testing.T, exp string, res string) {
-	if exp != res {
-		t.Error(assert, exp, res)
-	}
-}
-func assertEqualsI(t *testing.T, exp int, res int) {
-	if exp != res {
-		t.Error(assert, exp, res)
-	}
-
-}
-func assertNil(t *testing.T, err error) {
-	if err != nil {
-		t.Error("Error is not nil")
-	}
-}
 
 //build option 
 func TestParserOption(t *testing.T) {
