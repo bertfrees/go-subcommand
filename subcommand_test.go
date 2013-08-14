@@ -80,8 +80,23 @@ func TestBuildFlagInvalidShort(t *testing.T){
         buildFlag("option","o o","",emptyFn,Option)
 }
 
+func TestEmptyLong(t *testing.T){
+        defer func() {
+                if r := recover(); r == nil {
+		        t.Error("Not panicked with empty long definition")
+                }
+        }()
+        buildFlag("","o","",emptyFn,Option)
+}
 
-
+func TestEmptyShort(t *testing.T){
+        defer func() {
+                if r := recover(); r == nil {
+		        t.Error("Not panicked with empty short definition")
+                }
+        }()
+        buildFlag("option","","",emptyFn,Option)
+}
 func TestAddCommand(t *testing.T) {
         name:="com"
 	parser := NewParser("test")

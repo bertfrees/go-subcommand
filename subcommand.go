@@ -259,6 +259,15 @@ func checkDefinition(flag string)  bool{
 
 //builds the flag struct
 func buildFlag(long string, short string, desc string, fn func(string),kind FlagType) *Flag {
+        long=strings.Trim(long," ")
+        short=strings.Trim(short," ")
+        if len(long)==0{
+                panic("Long definition is empty")
+        }
+        if len(short)==0{
+                panic("Short definition is empty")
+        }
+
         if ! checkDefinition(long){
                 panic(fmt.Sprintf("Long definition %v has two words. Only one is accepted",long))
         }
