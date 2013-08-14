@@ -49,8 +49,8 @@ func NewParser(program string) *Parser {
 }
 
 //AddCommand inserts a new subcommand to the parser
-func (parser *Parser) AddCommand(name string, fn func(string)) (command *Command, err error) {
-	if _, exists := parser.Commands[name]; exists {
+func (p *Parser) AddCommand(name string, fn func(string)) (command *Command, err error) {
+	if _, exists := p.Commands[name]; exists {
 		return nil, fmt.Errorf("Command '%s' already exists ", name)
 	}
 	//create the command
@@ -59,8 +59,8 @@ func (parser *Parser) AddCommand(name string, fn func(string)) (command *Command
 	command.innerFlagsShort = make(map[string]*Flag)
 	command.innerFlagsLong = make(map[string]*Flag)
 	command.fn = fn
-	//add it to the parser
-	parser.Commands[name] = command
+	//add it to the p
+	p.Commands[name] = command
 	return command, nil
 }
 
@@ -74,20 +74,20 @@ func (parser *Parser) AddCommand(name string, fn func(string)) (command *Command
 //Example:
 //command.AddFlag("--thing THING","-t",thingProcessor)//option
 //command.AddFlag("--tacata","-ta",isTacata)//switch
-func (command *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
+func (c *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
 	flag, err = buildFlag(long, short, description, fn)
 	if err != nil {
 		return nil, err
 	}
-	if _, exists := command.innerFlagsLong[flag.Long]; exists {
+	if _, exists := c.innerFlagsLong[flag.Long]; exists {
 		return nil, fmt.Errorf("Flag '%s' already exists ", long)
 	}
-	command.innerFlagsLong[flag.Long] = flag
+	c.innerFlagsLong[flag.Long] = flag
 
-	if _, exists := command.innerFlagsShort[flag.Short]; exists {
+	if _, exists := c.innerFlagsShort[flag.Short]; exists {
 		return nil, fmt.Errorf("Flag '%s' already exists ", long)
 	}
-	command.innerFlagsShort[flag.Short] = flag
+	c.innerFlagsShort[flag.Short] = flag
 	return flag, nil
 
 }
@@ -101,37 +101,37 @@ type flagged interface {
 }
 
 //getShortFlag returns the flag for the given short definition or false if it's not present
-func (command *Command) getShortFlag(name string) (flag *Flag, ok bool) {
-	flag, ok = command.innerFlagsShort[name]
+func (c *Command) getShortFlag(name string) (flag *Flag, ok bool) {
+	flag, ok = c.innerFlagsShort[name]
 	return
 }
 
 //getLongFlag returns the flag for the long definition or false if it's not present
-func (command *Command) getLongFlag(name string) (flag *Flag, ok bool) {
-	flag, ok = command.innerFlagsLong[name]
+func (c *Command) getLongFlag(name string) (flag *Flag, ok bool) {
+	flag, ok = c.innerFlagsLong[name]
 	return
 }
 
-//getName returns the command name
-func (command *Command) getName() string {
-	return command.Name
+//getName returns the c name
+func (c *Command) getName() string {
+	return c.Name
 }
 
-//getFlags returns a slice containing the command's flags
-func (command *Command) getFlags() []Flag {
-	//return command.Name
+//getFlags returns a slice containing the c's flags
+func (c *Command) getFlags() []Flag {
+	//return c.Name
 	flags := make([]Flag, 0)
-	for _, val := range command.innerFlagsLong {
+	for _, val := range c.innerFlagsLong {
 		flags = append(flags, *val)
 	}
 	return flags
 }
 
 //Parse parses the arguments executing the associated functions for each command and flag. It returns the left overs if some non-option strings were not processed. Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
-func (parser *Parser) Parse(args []string) (leftOvers []string, err error) {
+func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 	leftOvers = make([]string, 0)
 	visited := make([]Flag, 0)
-	var currentCommand flagged = parser
+	var currentCommand flagged = p
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -167,7 +167,7 @@ func (parser *Parser) Parse(args []string) (leftOvers []string, err error) {
 				err = fmt.Errorf("%v was not found and is mandatory for %v", flag, currentCommand)
 				return
 			}
-			cmd, ok := parser.Commands[arg]
+			cmd, ok := p.Commands[arg]
 			if ok {
 				currentCommand = cmd
 				cmd.fn(arg)
@@ -218,8 +218,8 @@ type Flag struct {
 }
 
 //Must sets the flag as mandatory. The parser will raise an error in case it isn't present in the arguments
-func (flag Flag) Must(isIt bool) {
-	flag.Mandatory = isIt
+func (f Flag) Must(isIt bool) {
+	f.Mandatory = isIt
 }
 
 //parse flag type
