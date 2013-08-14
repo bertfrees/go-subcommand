@@ -38,14 +38,22 @@ type Parser struct {
 	Commands map[string]*Command
 }
 
+
+func newCommand(name string, fn func(string)) *Command {
+        return &Command{
+                Name: name,
+                innerFlagsShort: make(map[string]*Flag),
+                innerFlagsLong:  make(map[string]*Flag),
+                fn: fn,
+        }
+}
+
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
-	parser := new(Parser)
-	parser.innerFlagsShort = make(map[string]*Flag)
-	parser.innerFlagsLong = make(map[string]*Flag)
-	parser.Commands = make(map[string]*Command)
-	parser.Name = program
-	return parser
+        return &Parser{
+                Command:  *newCommand(program, nil),
+                Commands: make(map[string]*Command),
+        }
 }
 
 //AddCommand inserts a new subcommand to the parser
@@ -54,12 +62,8 @@ func (p *Parser) AddCommand(name string, fn func(string)) (command *Command, err
 		return nil, fmt.Errorf("Command '%s' already exists ", name)
 	}
 	//create the command
-	command = new(Command)
-	command.Name = name
-	command.innerFlagsShort = make(map[string]*Flag)
-	command.innerFlagsLong = make(map[string]*Flag)
-	command.fn = fn
-	//add it to the p
+        command=newCommand(name,fn)
+	//add it to the parser
 	p.Commands[name] = command
 	return command, nil
 }
