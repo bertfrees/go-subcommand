@@ -122,47 +122,47 @@ func TestParseGlobalOption(t *testing.T) {
 
 }
 
-//func TestParseGlobalOptionShort(t *testing.T) {
-	//parser := NewParser("test")
-	//processed := false
-	//parser.AddFlag("--option OPT", "-o", "This is an option", func(val string) {
-		//if val == "value" {
-			//processed = true
-		//}
-	//})
-	//parser.Parse([]string{"-o", "value"})
-	//if !processed {
-		//t.Error("Option wasn't processed")
-	//}
+func TestParseGlobalOptionShort(t *testing.T) {
+        parser := NewParser("test")
+        processed := false
+        parser.AddOption("option", "o", "This is an option", func(val string) {
+                if val == "value" {
+                        processed = true
+                }
+        })
+        parser.Parse([]string{"-o", "value"})
+        if !processed {
+                t.Error("Option wasn't processed")
+        }
 
-//}
+}
 
-//func TestParseGlobalSwitch(t *testing.T) {
-	//parser := NewParser("test")
-	//processed := false
-	//parser.AddFlag("--switch", "-s", "This is a switch", func(string) {
-		//processed = true
-	//})
-	//parser.Parse([]string{"--switch", "value"})
-	//if !processed {
-		//t.Error("Switch wasn't processed")
-	//}
+func TestParseGlobalSwitch(t *testing.T) {
+        parser := NewParser("test")
+        processed := false
+        parser.AddSwitch("switch", "s", "This is a switch", func(string) {
+                processed = true
+        })
+        parser.Parse([]string{"--switch", "value"})
+        if !processed {
+                t.Error("Switch wasn't processed")
+        }
 
-//}
+}
 
-//func TestParseGlobalSwitchShort(t *testing.T) {
+func TestParseGlobalSwitchShort(t *testing.T) {
 
-	//parser := NewParser("test")
-	//processed := false
-	//parser.AddFlag("--switch", "-s", "This is a switch", func(string) {
-		//processed = true
-	//})
-	//parser.Parse([]string{"-s", "value"})
-	//if !processed {
-		//t.Error("Switch wasn't processed")
-	//}
+        parser := NewParser("test")
+        processed := false
+        parser.AddSwitch("switch", "s", "This is a switch", func(string) {
+                processed = true
+        })
+        parser.Parse([]string{"-s", "value"})
+        if !processed {
+                t.Error("Switch wasn't processed")
+        }
 
-//}
+}
 
 func TestParseGlobalNoOptionFound(t *testing.T) {
 	parser := NewParser("test")
@@ -172,14 +172,14 @@ func TestParseGlobalNoOptionFound(t *testing.T) {
 	}
 }
 
-//func TestParseGlobalOptionEmpty(t *testing.T) {
-	//parser := NewParser("test")
-	//parser.AddFlag("--option ", "-o", "This is an option", emptyFn)
-	//_, err := parser.Parse([]string{"--option"})
-	//if err == nil {
-		//t.Error("No error thrown")
-	//}
-//}
+func TestParseGlobalOptionEmpty(t *testing.T) {
+        parser := NewParser("test")
+        parser.AddOption("option", "o", "This is an option", emptyFn)
+        _, err := parser.Parse([]string{"--option"})
+        if err == nil {
+                t.Error("No error thrown")
+        }
+}
 
 func TestParseCommand(t *testing.T) {
 	parser := NewParser("test")
@@ -213,23 +213,23 @@ func TestParseUnknown(t *testing.T) {
 	}
 }
 
-//func TestParseInnerFlagCommand(t *testing.T) {
-	//parser := NewParser("test")
-	//shouldnt := false
-	//proc := false
-	//parser.AddFlag("--switch", "-s", "This is a global switch", func(string) {
-		//shouldnt = true
-	//})
-	//cmd, _ := parser.AddCommand("command", func(string) {
-	//})
-	//cmd.AddFlag("--switch", "-s", "This is a command switch", func(string) {
-		//proc = true
-	//})
-	//parser.Parse([]string{"command", "-s"})
-	//if !proc {
-		//t.Error("Switch wasn't processed")
-	//}
-	//if shouldnt {
-		//t.Error("Confusion between global and command flag")
-	//}
-//}
+func TestParseInnerFlagCommand(t *testing.T) {
+        parser := NewParser("test")
+        shouldnt := false
+        proc := false
+        parser.AddSwitch("switch", "s", "This is a global switch", func(string) {
+                shouldnt = true
+        })
+        cmd := parser.AddCommand("command", func(string) {
+        })
+        cmd.AddSwitch("switch", "s", "This is a command switch", func(string) {
+                proc = true
+        })
+        parser.Parse([]string{"command", "-s"})
+        if !proc {
+                t.Error("Switch wasn't processed")
+        }
+        if shouldnt {
+                t.Error("Confusion between global and command flag")
+        }
+}
