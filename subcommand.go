@@ -26,6 +26,7 @@ const (
 type Command struct {
 	//Name
 	Name            string
+	Description     string
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
 	fn              func(command string, leftOvers ...string)
@@ -38,7 +39,7 @@ type Parser struct {
 	Commands map[string]*Command
 }
 
-func newCommand(name string, fn func(string, ...string)) *Command {
+func newCommand(name string, description string, fn func(string, ...string)) *Command {
 	return &Command{
 		Name:            name,
 		innerFlagsShort: make(map[string]*Flag),
@@ -50,18 +51,18 @@ func newCommand(name string, fn func(string, ...string)) *Command {
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
 	return &Parser{
-		Command:  *newCommand(program, nil),
+		Command:  *newCommand(program, "", nil),
 		Commands: make(map[string]*Command),
 	}
 }
 
 //AddCommand inserts a new subcommand to the parser
-func (p *Parser) AddCommand(name string, fn func(string, ...string)) *Command {
+func (p *Parser) AddCommand(name string, description string, fn func(string, ...string)) *Command {
 	if _, exists := p.Commands[name]; exists {
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
 	//create the command
-	command := newCommand(name, fn)
+	command := newCommand(name, description, fn)
 	//add it to the parser
 	p.Commands[name] = command
 	return command
