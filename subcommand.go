@@ -57,42 +57,66 @@ func NewParser(program string) *Parser {
 }
 
 //AddCommand inserts a new subcommand to the parser
-func (p *Parser) AddCommand(name string, fn func(string)) (command *Command, err error) {
+func (p *Parser) AddCommand(name string, fn func(string)) *Command{
 	if _, exists := p.Commands[name]; exists {
-		return nil, fmt.Errorf("Command '%s' already exists ", name)
+		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
 	//create the command
-        command=newCommand(name,fn)
+        command:=newCommand(name,fn)
 	//add it to the parser
 	p.Commands[name] = command
-	return command, nil
+	return command
 }
 
-//AddFlag adds a new switch or option to the command.
-//The distinction between switches and options is made from the long definition:
-//
-// "--option OPTION" expects a value after the flag
-// "--switch " does not expect a value
+//Adds a new option to the command to be used as 
+// "--option OPTION" (expects a value after the flag)
 //
 //The short definition has no length restriction but it should be significantly shorter that its long counterpart
 //Example:
 //command.AddFlag("--thing THING","-t",thingProcessor)//option
 //command.AddFlag("--tacata","-ta",isTacata)//switch
-func (c *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
-	flag, err = buildFlag(long, short, description, fn)
-	if err != nil {
-		return nil, err
-	}
-	if _, exists := c.innerFlagsLong[flag.Long]; exists {
-		return nil, fmt.Errorf("Flag '%s' already exists ", long)
-	}
-	c.innerFlagsLong[flag.Long] = flag
+//func (c *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
+	//flag, err = buildFlag(long, short, description, fn)
+	//if err != nil {
+		//return nil, err
+	//}
+	//if _, exists := c.innerFlagsLong[flag.Long]; exists {
+		//return nil, fmt.Errorf("Flag '%s' already exists ", long)
+	//}
+	//c.innerFlagsLong[flag.Long] = flag
 
-	if _, exists := c.innerFlagsShort[flag.Short]; exists {
-		return nil, fmt.Errorf("Flag '%s' already exists ", long)
+	//if _, exists := c.innerFlagsShort[flag.Short]; exists {
+		//return nil, fmt.Errorf("Flag '%s' already exists ", long)
+	//}
+	//c.innerFlagsShort[flag.Short] = flag
+	//return flag, nil
+
+//}
+
+
+func (c *Command) AddOption(long string, short string, description string, fn func(string)) *Flag {
+        flag := buildFlag(long, short, description, fn, Option)
+        c.addFlag(flag)
+        return flag
+}
+
+func (c *Command) AddSwitch(long string, short string, description string, fn func(string)) *Flag {
+        flag := buildFlag(long, short, description, fn, Switch)
+        c.addFlag(flag)
+        return flag
+}
+
+func  (c *Command) addFlag(flag *Flag) {
+
+	if _, exists := c.innerFlagsLong[flag.Long]; exists {
+		 panic(fmt.Errorf("Flag '%s' already exists ", flag.Long))
 	}
+	if _, exists := c.innerFlagsShort[flag.Short]; exists {
+		 panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
+	}
+
+	c.innerFlagsLong[flag.Long] = flag
 	c.innerFlagsShort[flag.Short] = flag
-	return flag, nil
 
 }
 
@@ -143,9 +167,9 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 			var opt *Flag
 			var ok bool
 			if strings.HasPrefix(arg, "--") {
-				opt, ok = currentCommand.getLongFlag(arg)
+                                opt, ok = currentCommand.getLongFlag(arg[2:])
 			} else {
-				opt, ok = currentCommand.getShortFlag(arg)
+                                opt, ok = currentCommand.getShortFlag(arg[1:])
 			}
 			//not present
 			if !ok {
@@ -226,57 +250,27 @@ func (f Flag) Must(isIt bool) {
 	f.Mandatory = isIt
 }
 
-//parse flag type
-func getFlagType(flag string) (fType FlagType, err error) {
-	//is a switch?
-	parts := strings.Split(flag, " ")
-	l := len(parts)
-	switch {
-	case len(parts[0]) == 0:
-		return -1, fmt.Errorf("Flag is empty")
-	case l == 1:
-		return Switch, err
-	case l == 2:
-		return Option, err
-	default:
-		return -1, fmt.Errorf("Flag '%s' has more than 2  words", flag)
-	}
-}
 
-//parse long definition
-func getFlagLonfDefinition(flag string) (name string, err error) {
-	name = strings.Split(flag, " ")[0]
-	if !strings.HasPrefix(name, "--") {
-		return "", fmt.Errorf("Flag '%s' has to start by --", flag)
-	}
-	return name, nil
-}
-
-//parse short definition
-func getFlagShortDefinition(flag string) (name string, err error) {
+//checks that the definition is just one word
+func checkDefinition(flag string)  bool{
 	parts := strings.Split(flag, " ")
-	if len(parts) > 1 {
-		return "", fmt.Errorf("Short flag must have only one word %s", flag)
-	} else if !strings.HasPrefix(parts[0], "-") {
-		return "", fmt.Errorf("Flag '%s' has to start by -", flag)
-	}
-	return parts[0], nil
+	return len(parts) == 1
 }
 
 //builds the flag struct
-func buildFlag(long string, short string, desc string, fn func(string)) (flag *Flag, err error) {
-	flag = new(Flag)
-	flag.Type, err = getFlagType(long)
-	if err != nil {
-		return nil, err
-	}
+func buildFlag(long string, short string, desc string, fn func(string),kind FlagType) *Flag {
+        if ! checkDefinition(long){
+                panic(fmt.Sprintf("Long definition %v has two words. Only one is accepted",long))
+        }
 
-	flag.Long, err = getFlagLonfDefinition(long)
-	if err != nil {
-		return nil, err
-	}
-	flag.Short, err = getFlagShortDefinition(short)
-	flag.fn = fn
-	flag.Mandatory = false
-	return flag, nil
+        if ! checkDefinition(short){
+                panic(fmt.Sprintf("Short definition %v has two words. Only one is accepted",long))
+        }
+        return  &Flag{
+                Type:kind,
+                Long: long,
+                Short: short,
+                fn : fn,
+                Mandatory : false,
+        }
 }
