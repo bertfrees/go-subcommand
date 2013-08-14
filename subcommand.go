@@ -28,7 +28,7 @@ type Command struct {
 	Name            string
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
-	fn              func(string)
+	fn              func(command string, leftOvers ...string)
 }
 
 //Parser is a command itself and contains other commands. It's the
@@ -38,37 +38,36 @@ type Parser struct {
 	Commands map[string]*Command
 }
 
-
-func newCommand(name string, fn func(string)) *Command {
-        return &Command{
-                Name: name,
-                innerFlagsShort: make(map[string]*Flag),
-                innerFlagsLong:  make(map[string]*Flag),
-                fn: fn,
-        }
+func newCommand(name string, fn func(string, ...string)) *Command {
+	return &Command{
+		Name:            name,
+		innerFlagsShort: make(map[string]*Flag),
+		innerFlagsLong:  make(map[string]*Flag),
+		fn:              fn,
+	}
 }
 
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
-        return &Parser{
-                Command:  *newCommand(program, nil),
-                Commands: make(map[string]*Command),
-        }
+	return &Parser{
+		Command:  *newCommand(program, nil),
+		Commands: make(map[string]*Command),
+	}
 }
 
 //AddCommand inserts a new subcommand to the parser
-func (p *Parser) AddCommand(name string, fn func(string)) *Command{
+func (p *Parser) AddCommand(name string, fn func(string, ...string)) *Command {
 	if _, exists := p.Commands[name]; exists {
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
 	//create the command
-        command:=newCommand(name,fn)
+	command := newCommand(name, fn)
 	//add it to the parser
 	p.Commands[name] = command
 	return command
 }
 
-//Adds a new option to the command to be used as 
+//Adds a new option to the command to be used as
 // "--option OPTION" (expects a value after the flag)
 //
 //The short definition has no length restriction but it should be significantly shorter that its long counterpart
@@ -76,43 +75,42 @@ func (p *Parser) AddCommand(name string, fn func(string)) *Command{
 //command.AddFlag("--thing THING","-t",thingProcessor)//option
 //command.AddFlag("--tacata","-ta",isTacata)//switch
 //func (c *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
-	//flag, err = buildFlag(long, short, description, fn)
-	//if err != nil {
-		//return nil, err
-	//}
-	//if _, exists := c.innerFlagsLong[flag.Long]; exists {
-		//return nil, fmt.Errorf("Flag '%s' already exists ", long)
-	//}
-	//c.innerFlagsLong[flag.Long] = flag
+//flag, err = buildFlag(long, short, description, fn)
+//if err != nil {
+//return nil, err
+//}
+//if _, exists := c.innerFlagsLong[flag.Long]; exists {
+//return nil, fmt.Errorf("Flag '%s' already exists ", long)
+//}
+//c.innerFlagsLong[flag.Long] = flag
 
-	//if _, exists := c.innerFlagsShort[flag.Short]; exists {
-		//return nil, fmt.Errorf("Flag '%s' already exists ", long)
-	//}
-	//c.innerFlagsShort[flag.Short] = flag
-	//return flag, nil
+//if _, exists := c.innerFlagsShort[flag.Short]; exists {
+//return nil, fmt.Errorf("Flag '%s' already exists ", long)
+//}
+//c.innerFlagsShort[flag.Short] = flag
+//return flag, nil
 
 //}
 
-
 func (c *Command) AddOption(long string, short string, description string, fn func(string)) *Flag {
-        flag := buildFlag(long, short, description, fn, Option)
-        c.addFlag(flag)
-        return flag
+	flag := buildFlag(long, short, description, fn, Option)
+	c.addFlag(flag)
+	return flag
 }
 
 func (c *Command) AddSwitch(long string, short string, description string, fn func(string)) *Flag {
-        flag := buildFlag(long, short, description, fn, Switch)
-        c.addFlag(flag)
-        return flag
+	flag := buildFlag(long, short, description, fn, Switch)
+	c.addFlag(flag)
+	return flag
 }
 
-func  (c *Command) addFlag(flag *Flag) {
+func (c *Command) addFlag(flag *Flag) {
 
 	if _, exists := c.innerFlagsLong[flag.Long]; exists {
-		 panic(fmt.Errorf("Flag '%s' already exists ", flag.Long))
+		panic(fmt.Errorf("Flag '%s' already exists ", flag.Long))
 	}
 	if _, exists := c.innerFlagsShort[flag.Short]; exists {
-		 panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
+		panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
 	}
 
 	c.innerFlagsLong[flag.Long] = flag
@@ -157,8 +155,22 @@ func (c *Command) getFlags() []Flag {
 
 //Parse parses the arguments executing the associated functions for each command and flag. It returns the left overs if some non-option strings were not processed. Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
 func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
-	leftOvers = make([]string, 0)
-	visited := make([]Flag, 0)
+	//get the delayed functions to call
+	//for every flag//command
+	fns, leftOvers, err := p.parse(args)
+	if err != nil {
+		return
+	}
+	for _, fn := range fns {
+		fn()
+	}
+	return leftOvers, nil
+}
+
+func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, err error) {
+	//visited flags
+	var visited []Flag
+	//functions to call once the parsing process is over
 	var currentCommand flagged = p
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
@@ -167,25 +179,25 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 			var opt *Flag
 			var ok bool
 			if strings.HasPrefix(arg, "--") {
-                                opt, ok = currentCommand.getLongFlag(arg[2:])
+				opt, ok = currentCommand.getLongFlag(arg[2:])
 			} else {
-                                opt, ok = currentCommand.getShortFlag(arg[1:])
+				opt, ok = currentCommand.getShortFlag(arg[1:])
 			}
 			//not present
 			if !ok {
 				err = fmt.Errorf("%v is not a valid flag for %v", arg, currentCommand.getName())
-				//show help?
 				return
 			}
+
 			if opt.Type == Option { //option
 				if i+1 >= len(args) {
 					err = fmt.Errorf("No value for option %v", arg)
 					return
 				}
 				i++
-				opt.fn(args[i])
+				functions = append(functions, flagCaller(args[i], opt.fn))
 			} else { //switch
-				opt.fn("")
+				functions = append(functions, flagCaller("", opt.fn))
 			}
 			//add to visited options
 			visited = append(visited, *opt)
@@ -198,7 +210,7 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 			cmd, ok := p.Commands[arg]
 			if ok {
 				currentCommand = cmd
-				cmd.fn(arg)
+				functions = append(functions, commandCaller(arg, &leftOvers, cmd.fn))
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
@@ -207,7 +219,14 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 
 	}
 
-	return leftOvers, nil
+	return
+}
+
+func flagCaller(value string, fn func(string)) func() {
+	return func() { fn(value) }
+}
+func commandCaller(command string, leftOvers *[]string, fn func(string, ...string)) func() {
+	return func() { fn(command, *leftOvers...) }
 }
 
 //checks if the mandatory flags were visited
@@ -250,36 +269,35 @@ func (f Flag) Must(isIt bool) {
 	f.Mandatory = isIt
 }
 
-
-//checks that the definition is just one word
-func checkDefinition(flag string)  bool{
+//Checks that the definition is just one word
+func checkDefinition(flag string) bool {
 	parts := strings.Split(flag, " ")
 	return len(parts) == 1
 }
 
 //builds the flag struct
-func buildFlag(long string, short string, desc string, fn func(string),kind FlagType) *Flag {
-        long=strings.Trim(long," ")
-        short=strings.Trim(short," ")
-        if len(long)==0{
-                panic("Long definition is empty")
-        }
-        if len(short)==0{
-                panic("Short definition is empty")
-        }
+func buildFlag(long string, short string, desc string, fn func(string), kind FlagType) *Flag {
+	long = strings.Trim(long, " ")
+	short = strings.Trim(short, " ")
+	if len(long) == 0 {
+		panic("Long definition is empty")
+	}
+	if len(short) == 0 {
+		panic("Short definition is empty")
+	}
 
-        if ! checkDefinition(long){
-                panic(fmt.Sprintf("Long definition %v has two words. Only one is accepted",long))
-        }
+	if !checkDefinition(long) {
+		panic(fmt.Sprintf("Long definition %v has two words. Only one is accepted", long))
+	}
 
-        if ! checkDefinition(short){
-                panic(fmt.Sprintf("Short definition %v has two words. Only one is accepted",long))
-        }
-        return  &Flag{
-                Type:kind,
-                Long: long,
-                Short: short,
-                fn : fn,
-                Mandatory : false,
-        }
+	if !checkDefinition(short) {
+		panic(fmt.Sprintf("Short definition %v has two words. Only one is accepted", long))
+	}
+	return &Flag{
+		Type:      kind,
+		Long:      long,
+		Short:     short,
+		fn:        fn,
+		Mandatory: false,
+	}
 }
