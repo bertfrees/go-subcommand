@@ -1,6 +1,8 @@
 go-subcommand
 =============
 
+[![Build Status](https://travis-ci.org/capitancambio/go-subcommand.png?branch=master)](https://travis-ci.org/capitancambio/go-subcommand)
+
 Option parser for go programs a la git/mercurial/go loosely inspired by Ruby's OptionParser.
 
 
