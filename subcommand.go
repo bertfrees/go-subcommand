@@ -32,6 +32,21 @@ type Command struct {
 	fn              func(command string, leftOvers ...string)
         parent  *Command
 }
+//Access to flags 
+type Flagged interface {
+	Flags() []Flag
+}
+
+
+//getFlags returns a slice containing the c's flags
+func (c *Command) Flags() []Flag {
+	//return c.Name
+	flags := make([]Flag, 0)
+	for _, val := range c.innerFlagsLong {
+		flags = append(flags, *val)
+	}
+	return flags
+}
 
 //Parser contains other commands. It's the
 //data structure and its name should be the executable name.
@@ -137,40 +152,7 @@ func (c *Command) addFlag(flag *Flag) {
         //}
         //return err
 //}
-//flagged is convenience interface for treating commands and parsers equally
-type Flagged interface {
-	getShortFlag(name string) (flag *Flag, ok bool)
-	getLongFlag(name string) (flag *Flag, ok bool)
-	Flags() []Flag
-	getName() string
-}
 
-//getShortFlag returns the flag for the given short definition or false if it's not present
-func (c *Command) getShortFlag(name string) (flag *Flag, ok bool) {
-	flag, ok = c.innerFlagsShort[name]
-	return
-}
-
-//getLongFlag returns the flag for the long definition or false if it's not present
-func (c *Command) getLongFlag(name string) (flag *Flag, ok bool) {
-	flag, ok = c.innerFlagsLong[name]
-	return
-}
-
-//getName returns the c name
-func (c *Command) getName() string {
-	return c.Name
-}
-
-//getFlags returns a slice containing the c's flags
-func (c *Command) Flags() []Flag {
-	//return c.Name
-	flags := make([]Flag, 0)
-	for _, val := range c.innerFlagsLong {
-		flags = append(flags, *val)
-	}
-	return flags
-}
 
 //Parse parses the arguments executing the associated functions for each command and flag. It returns the left overs if some non-option strings were not processed. Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
 func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
@@ -191,7 +173,7 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	var visited []Flag
 	//functions to call once the parsing process is over
         //TODO: user p.Command instead of the useless iface..
-	var currentCommand Flagged = p
+	var currentCommand Command = p.Command
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -199,13 +181,13 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			var opt *Flag
 			var ok bool
 			if strings.HasPrefix(arg, "--") {
-				opt, ok = currentCommand.getLongFlag(arg[2:])
+				opt, ok = currentCommand.innerFlagsLong[ arg[2:] ]
 			} else {
-				opt, ok = currentCommand.getShortFlag(arg[1:])
+				opt, ok = currentCommand.innerFlagsShort[ arg[1:] ]
 			}
 			//not present
 			if !ok {
-				err = fmt.Errorf("%v is not a valid flag for %v", arg, currentCommand.getName())
+				err = fmt.Errorf("%v is not a valid flag for %v", arg, currentCommand.Name)
 				return
 			}
 
@@ -229,7 +211,7 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			}
 			cmd, ok := p.Commands[arg]
 			if ok {
-				currentCommand = cmd
+				currentCommand = *cmd
 				functions = append(functions, commandCaller(arg, &leftOvers, cmd.fn))
 			} else {
 				leftOvers = append(leftOvers, arg)

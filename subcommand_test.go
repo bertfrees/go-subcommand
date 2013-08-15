@@ -256,3 +256,17 @@ func TestParseCommandWithLefts(t *testing.T) {
 		t.Errorf("arg2 != %v", arg2)
 	}
 }
+
+//func TestDefaultPrinter(t *testing.T) {
+	//parser := NewParser("test")
+	//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
+	//})
+	//parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
+	//}).Must(true)
+	//parser.AddOption("option", "o", "This is a global option", func(string) {
+	//})
+	//parser.AddCommand("command", "This is a global command",func(string, ...string) {
+	//})
+        //hPrinter:=&HelpPrinter{}
+        //hPrinter.VisitParser(*parser)
+//}
