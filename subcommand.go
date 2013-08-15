@@ -96,7 +96,7 @@ func defaultHelp(p *Parser) func(string, ...string) {
 	}
 }
 
-//AddCommand inserts a new subcommand to the parser. The callback fn recieves as first argument
+//AddCommand inserts a new subcommand to the parser. The callback fn receives as first argument
 //the command name followed by the left overs of the parsing process
 //Example:
 // command "hello" prints the non flags (options and switches) arguments.
@@ -127,7 +127,7 @@ func (p *Parser) AddCommand(name string, description string, fn func(string, ...
 // func setPath(option,value string){
 //      printf("According the option %v the path is set to %v",option,value);
 //}
-func (c *Command) AddOption(long string, short string, description string, fn func(string)) *Flag {
+func (c *Command) AddOption(long string, short string, description string, fn func(string, string)) *Flag {
 	flag := buildFlag(long, short, description, fn, Option)
 	c.addFlag(flag)
 	return flag
@@ -135,14 +135,14 @@ func (c *Command) AddOption(long string, short string, description string, fn fu
 
 //Adds a new switch to the command to be used as "--switch" (expects no value after the flag) in the command line
 //The short definition has no length restriction but it should be significantly shorter that its long counterpart
-//
+//The function fn receives two string, the first is the switch name and the second is just an empty string
 //Example:
 //command.AddSwitch("verbose","v",setVerbose)//option
 //[...]
 // func setVerbose(switch string){
-//      printf("I'm get to get quite talktive! I'm set to be %v ",switch);
+//      printf("I'm get to get quite talkative! I'm set to be %v ",switch);
 //}
-func (c *Command) AddSwitch(long string, short string, description string, fn func(string)) *Flag {
+func (c *Command) AddSwitch(long string, short string, description string, fn func(string, string)) *Flag {
 	flag := buildFlag(long, short, description, fn, Switch)
 	c.addFlag(flag)
 	return flag
@@ -212,10 +212,10 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 					err = fmt.Errorf("No value for option %v", arg)
 					return
 				}
+				functions = append(functions, flagCaller(opt.Long, args[i+1], opt.fn))
 				i++
-				functions = append(functions, flagCaller(args[i], opt.fn))
 			} else { //switch
-				functions = append(functions, flagCaller("", opt.fn))
+				functions = append(functions, flagCaller(opt.Long, "", opt.fn))
 			}
 			//add to visited options
 			visited = append(visited, *opt)
@@ -244,8 +244,8 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	return
 }
 
-func flagCaller(value string, fn func(string)) func() {
-	return func() { fn(value) }
+func flagCaller(name, value string, fn func(string, string)) func() {
+	return func() { fn(name, value) }
 }
 func commandCaller(command string, leftOvers *[]string, fn func(string, ...string)) func() {
 	return func() { fn(command, *leftOvers...) }
@@ -281,7 +281,7 @@ type Flag struct {
 	//FlagType, option or switch
 	Type FlagType
 	//Function to call when the flag is found during the parsing process
-	fn func(string)
+	fn func(string, string)
 	//Says if the flag is optional or mandatory
 	Mandatory bool
 }
@@ -320,7 +320,7 @@ func checkDefinition(flag string) bool {
 }
 
 //builds the flag struct panicking if errors are encountered
-func buildFlag(long string, short string, desc string, fn func(string), kind FlagType) *Flag {
+func buildFlag(long string, short string, desc string, fn func(string, string), kind FlagType) *Flag {
 	long = strings.Trim(long, " ")
 	short = strings.Trim(short, " ")
 	if len(long) == 0 {

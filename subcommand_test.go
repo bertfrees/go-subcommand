@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-var emptyFn = func(value string) {}
+var emptyFn = func(name, value string) {}
 var emptyFnMult = func(command string, values ...string) {}
 
 //build option
@@ -108,8 +108,8 @@ func TestAddCommandTwice(t *testing.T) {
 func TestParseGlobalOption(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddOption("option", "o", "This is an option", func(val string) {
-		if val == "value" {
+	parser.AddOption("option", "o", "This is an option", func(name, val string) {
+		if val == "value" && name == "option" {
 			processed = true
 		}
 	})
@@ -123,8 +123,8 @@ func TestParseGlobalOption(t *testing.T) {
 func TestParseGlobalOptionShort(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddOption("option", "o", "This is an option", func(val string) {
-		if val == "value" {
+	parser.AddOption("option", "o", "This is an option", func(name, val string) {
+		if val == "value" && name == "option" {
 			processed = true
 		}
 	})
@@ -138,8 +138,10 @@ func TestParseGlobalOptionShort(t *testing.T) {
 func TestParseGlobalSwitch(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddSwitch("switch", "s", "This is a switch", func(string) {
-		processed = true
+	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) {
+		if name == "switch" {
+			processed = true
+		}
 	})
 	parser.Parse([]string{"--switch", "value"})
 	if !processed {
@@ -152,8 +154,10 @@ func TestParseGlobalSwitchShort(t *testing.T) {
 
 	parser := NewParser("test")
 	processed := false
-	parser.AddSwitch("switch", "s", "This is a switch", func(string) {
-		processed = true
+	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) {
+		if name == "switch" {
+			processed = true
+		}
 	})
 	parser.Parse([]string{"-s", "value"})
 	if !processed {
@@ -215,12 +219,12 @@ func TestParseInnerFlagCommand(t *testing.T) {
 	parser := NewParser("test")
 	shouldnt := false
 	proc := false
-	parser.AddSwitch("switch", "s", "This is a global switch", func(string) {
+	parser.AddSwitch("switch", "s", "This is a global switch", func(string, string) {
 		shouldnt = true
 	})
 	cmd := parser.AddCommand("command", "", func(string, ...string) {
 	})
-	cmd.AddSwitch("switch", "s", "This is a command switch", func(string) {
+	cmd.AddSwitch("switch", "s", "This is a command switch", func(string, string) {
 		proc = true
 	})
 	parser.Parse([]string{"command", "-s"})
@@ -257,7 +261,7 @@ func TestParseCommandWithLefts(t *testing.T) {
 	}
 }
 
-/*func TestDefaultPrinter(t *testing.T) {*/
+/*func TestDefaultPrinter(t stringt*testing.T) {*/
 //parser := NewParser("test")
 //parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
 //})
