@@ -258,16 +258,16 @@ func TestParseCommandWithLefts(t *testing.T) {
 }
 
 /*func TestDefaultPrinter(t *testing.T) {*/
-	//parser := NewParser("test")
-	//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
-	//})
-	////parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
-	////}).Must(true)
-	//parser.AddOption("option", "o", "This is a global option", func(string) {
-	//})
-        //cmd:=parser.AddCommand("command", "This is a global command", func(string, ...string) {})
-	//cmd.AddOption("comopt","o", "This is a command optoin", func(string) {})
-	////hPrinter:=&HelpPrinter{}
-	////hPrinter.VisitParser(*parser)
-	//parser.Parse([]string{"help","command"})
+//parser := NewParser("test")
+//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
+//})
+////parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
+////}).Must(true)
+//parser.AddOption("option", "o", "This is a global option", func(string) {
+//})
+//cmd:=parser.AddCommand("command", "This is a global command", func(string, ...string) {})
+//cmd.AddOption("comopt","o", "This is a command optoin", func(string) {})
+////hPrinter:=&HelpPrinter{}
+////hPrinter.VisitParser(*parser)
+//parser.Parse([]string{"help","command"})
 /*}*/

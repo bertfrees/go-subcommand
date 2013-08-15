@@ -7,13 +7,6 @@ import (
 	"strings"
 )
 
-//parser:=new(Parser).AddFlag("--size ","-s","size of what ever")
-//parser.AddFlag("--cool" , "-c" ,"size", func (value String));
-//parser.AddCommand("cosa").AddFlag("--cosa","-c"," cosa ");
-//struct parser
-//struct command
-//struct flag
-
 //FlagType defines the different flag types. Options have values associated to the flag, Switches have no value associated.
 type FlagType int
 
@@ -48,13 +41,11 @@ func (c *Command) Flags() []Flag {
 	return flags
 }
 
-//Parser contains other commands. It's the
-//data structure and its name should be the executable name.
+//Parser contains other commands. It's the data structure and its name should be the program's name.
 type Parser struct {
 	Command
-	Commands    map[string]*Command
-	help        Command
-	helpVisitor HelpVisitor
+	Commands map[string]*Command
+	help     Command
 }
 
 func newCommand(parent *Command, name string, description string, fn func(string, ...string)) *Command {
@@ -68,6 +59,7 @@ func newCommand(parent *Command, name string, description string, fn func(string
 	}
 }
 
+//Sets the help command. There is one default implementation automatically added when the parser is created.
 func (p *Parser) SetHelp(name string, description string, fn func(string, ...string)) *Command {
 	command := newCommand(&p.Command, name, description, fn)
 	p.help = *command
@@ -75,11 +67,7 @@ func (p *Parser) SetHelp(name string, description string, fn func(string, ...str
 
 }
 
-func (p *Parser) SetHelpVisitor(v HelpVisitor) {
-	p.helpVisitor = v
-
-}
-
+//Returns the help command
 func (p Parser) Help() Command {
 	return p.help
 }
@@ -91,8 +79,6 @@ func NewParser(program string) *Parser {
 		Commands: make(map[string]*Command),
 	}
 	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(parser))
-        visitor:=&HelpPrinter{}
-        parser.SetHelpVisitor(visitor)
 	return parser
 }
 
@@ -100,17 +86,27 @@ func defaultHelp(p *Parser) func(string, ...string) {
 	return func(help string, args ...string) {
 		if len(args) > 0 {
 			if cmd, ok := p.Commands[args[0]]; ok {
-				p.helpVisitor.VisitCommand(*cmd)
+				visitCommand(*cmd)
 				return
 			} else {
 				fmt.Printf("help: command not found %v\n", args[0])
 			}
 		}
-		p.helpVisitor.VisitParser(*p)
+		visitParser(*p)
 	}
 }
 
-//AddCommand inserts a new subcommand to the parser
+//AddCommand inserts a new subcommand to the parser. The callback fn recieves as first argument
+//the command name followed by the left overs of the parsing process
+//Example:
+// command "hello" prints the non flags (options and switches) arguments.
+// The associated callback should be something like
+// func processCommand(commandName string,args ...string){
+//      fmt.Printf("The command %v says:\n",commandName)
+//      for _,arg:= rage args{
+//              fmt.Printf("%v \n",arg)
+//      }
+//}
 func (p *Parser) AddCommand(name string, description string, fn func(string, ...string)) *Command {
 	if _, exists := p.Commands[name]; exists {
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
@@ -122,43 +118,37 @@ func (p *Parser) AddCommand(name string, description string, fn func(string, ...
 	return command
 }
 
-//Adds a new option to the command to be used as
-// "--option OPTION" (expects a value after the flag)
-//
+//Adds a new option to the command to be used as "--option OPTION" (expects a value after the flag) in the command line
 //The short definition has no length restriction but it should be significantly shorter that its long counterpart
+//The function fn receives the name of the option and its value
 //Example:
-//command.AddFlag("--thing THING","-t",thingProcessor)//option
-//command.AddFlag("--tacata","-ta",isTacata)//switch
-//func (c *Command) AddFlag(long string, short string, description string, fn func(string)) (flag *Flag, err error) {
-//flag, err = buildFlag(long, short, description, fn)
-//if err != nil {
-//return nil, err
+//command.AddOption("path","p",setPath)//option
+//[...]
+// func setPath(option,value string){
+//      printf("According the option %v the path is set to %v",option,value);
 //}
-//if _, exists := c.innerFlagsLong[flag.Long]; exists {
-//return nil, fmt.Errorf("Flag '%s' already exists ", long)
-//}
-//c.innerFlagsLong[flag.Long] = flag
-
-//if _, exists := c.innerFlagsShort[flag.Short]; exists {
-//return nil, fmt.Errorf("Flag '%s' already exists ", long)
-//}
-//c.innerFlagsShort[flag.Short] = flag
-//return flag, nil
-
-//}
-
 func (c *Command) AddOption(long string, short string, description string, fn func(string)) *Flag {
 	flag := buildFlag(long, short, description, fn, Option)
 	c.addFlag(flag)
 	return flag
 }
 
+//Adds a new switch to the command to be used as "--switch" (expects no value after the flag) in the command line
+//The short definition has no length restriction but it should be significantly shorter that its long counterpart
+//
+//Example:
+//command.AddSwitch("verbose","v",setVerbose)//option
+//[...]
+// func setVerbose(switch string){
+//      printf("I'm get to get quite talktive! I'm set to be %v ",switch);
+//}
 func (c *Command) AddSwitch(long string, short string, description string, fn func(string)) *Flag {
 	flag := buildFlag(long, short, description, fn, Switch)
 	c.addFlag(flag)
 	return flag
 }
 
+//Adds a flag to the command
 func (c *Command) addFlag(flag *Flag) {
 
 	if _, exists := c.innerFlagsLong[flag.Long]; exists {
@@ -173,23 +163,14 @@ func (c *Command) addFlag(flag *Flag) {
 
 }
 
-//func (c *Command) String() string{
-//_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
-//return err
-//}
+func (c *Command) String() string {
+	return fmt.Sprintf("%v\t %v", c.Name, c.Description)
+}
 
-//func (c *Command) HelpVervose(w io.Writer) error{
-//_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
-//if err!=nil{
-//return err
-//}
-//for _,flag:= range c.getFlags(){
-//flag.Help(w)
-//}
-//return err
-//}
-
-//Parse parses the arguments executing the associated functions for each command and flag. It returns the left overs if some non-option strings were not processed. Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
+//Parse parses the arguments executing the associated functions for each command and flag.
+//It returns the left overs if some non-option strings or commands  were not processed.
+//Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
+// The set of function calls to be performed are carried in order and once the parsing process is done
 func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 	//get the delayed functions to call
 	//for every flag//command
@@ -203,11 +184,11 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 	return leftOvers, nil
 }
 
+//The actual parsing process
 func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, err error) {
 	//visited flags
 	var visited []Flag
 	//functions to call once the parsing process is over
-	//TODO: user p.Command instead of the useless iface..
 	var currentCommand Command = p.Command
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
@@ -245,11 +226,11 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 				return
 			}
 			cmd, ok := p.Commands[arg]
-			//if its a command or the help command
-			if ok && currentCommand.Name!=p.help.Name{
+			//if its a command
+			if ok && currentCommand.Name != p.help.Name {
 				currentCommand = *cmd
 				functions = append(functions, commandCaller(arg, &leftOvers, cmd.fn))
-                        }else if arg == p.help.Name {
+			} else if arg == p.help.Name { //it's the help
 				currentCommand = p.help
 				functions = append(functions, commandCaller(arg, &leftOvers, p.help.fn))
 			} else {
@@ -306,10 +287,15 @@ type Flag struct {
 }
 
 //Must sets the flag as mandatory. The parser will raise an error in case it isn't present in the arguments
+//TODO make sure that switches are not allowed to get mandatory
 func (f *Flag) Must(isIt bool) {
 	f.Mandatory = isIt
 }
 
+//Gets a help friendly flag representation:
+//-o,--option  OPTION           This option does this and that
+//-s,--switch                   This is a switch
+//-i,--ignoreme [IGNOREME]      Optional option
 func (f Flag) String() string {
 	var format string
 	var help string
@@ -333,7 +319,7 @@ func checkDefinition(flag string) bool {
 	return len(parts) == 1
 }
 
-//builds the flag struct
+//builds the flag struct panicking if errors are encountered
 func buildFlag(long string, short string, desc string, fn func(string), kind FlagType) *Flag {
 	long = strings.Trim(long, " ")
 	short = strings.Trim(short, " ")
@@ -361,15 +347,8 @@ func buildFlag(long string, short string, desc string, fn func(string), kind Fla
 	}
 }
 
-//HelpVisitor to print help
-type HelpVisitor interface {
-	VisitParser(p Parser)
-	VisitCommand(c Command)
-}
-
-type HelpPrinter struct{}
-
-func (h *HelpPrinter) VisitParser(p Parser) {
+//Help printing functions
+func visitParser(p Parser) {
 	fmt.Printf("Usage: %v [global_options] command [arguments]\n", p.Name)
 	fmt.Printf("\n")
 	fmt.Printf("Global Options\n")
@@ -389,10 +368,10 @@ func (h *HelpPrinter) VisitParser(p Parser) {
 	fmt.Printf("\t%v\t\t%v\n", p.help.Name, p.help.Description)
 }
 
-func (h *HelpPrinter) VisitCommand(c Command) {
-        fmt.Printf("%v\t\t%v\n", c.Name, c.Description)
+func visitCommand(c Command) {
+	fmt.Printf("%v\t\t%v\n", c.Name, c.Description)
 	fmt.Printf("\n")
-        for _, flag := range c.Flags() {
-                fmt.Printf("\t%v\n", flag)
-        }
+	for _, flag := range c.Flags() {
+		fmt.Printf("\t%v\n", flag)
+	}
 }
