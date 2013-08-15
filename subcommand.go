@@ -30,13 +30,13 @@ type Command struct {
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
 	fn              func(command string, leftOvers ...string)
-        parent  *Command
+	parent          *Command
 }
-//Access to flags 
+
+//Access to flags
 type Flagged interface {
 	Flags() []Flag
 }
-
 
 //getFlags returns a slice containing the c's flags
 func (c *Command) Flags() []Flag {
@@ -52,7 +52,9 @@ func (c *Command) Flags() []Flag {
 //data structure and its name should be the executable name.
 type Parser struct {
 	Command
-	Commands map[string]*Command
+	Commands    map[string]*Command
+	help        Command
+	helpVisitor HelpVisitor
 }
 
 func newCommand(parent *Command, name string, description string, fn func(string, ...string)) *Command {
@@ -61,16 +63,50 @@ func newCommand(parent *Command, name string, description string, fn func(string
 		innerFlagsShort: make(map[string]*Flag),
 		innerFlagsLong:  make(map[string]*Flag),
 		fn:              fn,
-                Description: description,
-                parent: parent,
+		Description:     description,
+		parent:          parent,
 	}
+}
+
+func (p *Parser) SetHelp(name string, description string, fn func(string, ...string)) *Command {
+	command := newCommand(&p.Command, name, description, fn)
+	p.help = *command
+	return command
+
+}
+
+func (p *Parser) SetHelpVisitor(v HelpVisitor) {
+	p.helpVisitor = v
+
+}
+
+func (p Parser) Help() Command {
+	return p.help
 }
 
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
-	return &Parser{
-		Command:  *newCommand(nil,program, "", nil),
+	parser := &Parser{
+		Command:  *newCommand(nil, program, "", nil),
 		Commands: make(map[string]*Command),
+	}
+	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(parser))
+        visitor:=&HelpPrinter{}
+        parser.SetHelpVisitor(visitor)
+	return parser
+}
+
+func defaultHelp(p *Parser) func(string, ...string) {
+	return func(help string, args ...string) {
+		if len(args) > 0 {
+			if cmd, ok := p.Commands[args[0]]; ok {
+				p.helpVisitor.VisitCommand(*cmd)
+				return
+			} else {
+				fmt.Printf("help: command not found %v\n", args[0])
+			}
+		}
+		p.helpVisitor.VisitParser(*p)
 	}
 }
 
@@ -80,7 +116,7 @@ func (p *Parser) AddCommand(name string, description string, fn func(string, ...
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
 	//create the command
-	command := newCommand(&p.Command,name, description, fn)
+	command := newCommand(&p.Command, name, description, fn)
 	//add it to the parser
 	p.Commands[name] = command
 	return command
@@ -138,21 +174,20 @@ func (c *Command) addFlag(flag *Flag) {
 }
 
 //func (c *Command) String() string{
-        //_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
-        //return err
+//_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
+//return err
 //}
 
 //func (c *Command) HelpVervose(w io.Writer) error{
-        //_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
-        //if err!=nil{
-                //return err
-        //}
-        //for _,flag:= range c.getFlags(){
-                //flag.Help(w)
-        //}
-        //return err
+//_,err:=fmt.Fprintf(w,"%v\t %v",c.Name,c.Description)
+//if err!=nil{
+//return err
 //}
-
+//for _,flag:= range c.getFlags(){
+//flag.Help(w)
+//}
+//return err
+//}
 
 //Parse parses the arguments executing the associated functions for each command and flag. It returns the left overs if some non-option strings were not processed. Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
 func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
@@ -172,7 +207,7 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	//visited flags
 	var visited []Flag
 	//functions to call once the parsing process is over
-        //TODO: user p.Command instead of the useless iface..
+	//TODO: user p.Command instead of the useless iface..
 	var currentCommand Command = p.Command
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
@@ -181,9 +216,9 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			var opt *Flag
 			var ok bool
 			if strings.HasPrefix(arg, "--") {
-				opt, ok = currentCommand.innerFlagsLong[ arg[2:] ]
+				opt, ok = currentCommand.innerFlagsLong[arg[2:]]
 			} else {
-				opt, ok = currentCommand.innerFlagsShort[ arg[1:] ]
+				opt, ok = currentCommand.innerFlagsShort[arg[1:]]
 			}
 			//not present
 			if !ok {
@@ -210,9 +245,13 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 				return
 			}
 			cmd, ok := p.Commands[arg]
-			if ok {
+			//if its a command or the help command
+			if ok && currentCommand.Name!=p.help.Name{
 				currentCommand = *cmd
 				functions = append(functions, commandCaller(arg, &leftOvers, cmd.fn))
+                        }else if arg == p.help.Name {
+				currentCommand = p.help
+				functions = append(functions, commandCaller(arg, &leftOvers, p.help.fn))
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
@@ -271,21 +310,21 @@ func (f *Flag) Must(isIt bool) {
 	f.Mandatory = isIt
 }
 
-func (f Flag) String() string{
-        var format string
-        var help string
-        if f.Type == Option{
-                if f.Mandatory{
-                        format="-%v, --%v %v\t%v"
-                }else{
-                        format="-%v, --%v [%v]\t%v"
-                }
-                help=fmt.Sprintf(format,f.Short,f.Long,strings.ToUpper(f.Long),f.Description)
-        }else{
-                format="-%v, --%v \t%v"
-                help=fmt.Sprintf(format,f.Short,f.Long,f.Description)
-        }
-        return help
+func (f Flag) String() string {
+	var format string
+	var help string
+	if f.Type == Option {
+		if f.Mandatory {
+			format = "-%v, --%v %v\t%v"
+		} else {
+			format = "-%v, --%v [%v]\t%v"
+		}
+		help = fmt.Sprintf(format, f.Short, f.Long, strings.ToUpper(f.Long), f.Description)
+	} else {
+		format = "-%v, --%v \t%v"
+		help = fmt.Sprintf(format, f.Short, f.Long, f.Description)
+	}
+	return help
 }
 
 //Checks that the definition is just one word
@@ -313,39 +352,47 @@ func buildFlag(long string, short string, desc string, fn func(string), kind Fla
 		panic(fmt.Sprintf("Short definition %v has two words. Only one is accepted", long))
 	}
 	return &Flag{
-		Type:      kind,
-		Long:      long,
-		Short:     short,
-		fn:        fn,
-                Description: desc,
-		Mandatory: false,
+		Type:        kind,
+		Long:        long,
+		Short:       short,
+		fn:          fn,
+		Description: desc,
+		Mandatory:   false,
 	}
 }
 
 //HelpVisitor to print help
 type HelpVisitor interface {
-        VisitParser(p Parser)
-        VisitCommand(c Command)
+	VisitParser(p Parser)
+	VisitCommand(c Command)
 }
 
-type HelpPrinter struct {}
+type HelpPrinter struct{}
 
-func (h *HelpPrinter) VisitParser(p Parser){
-        fmt.Printf("Usage: %v [global_options] command [arguments]\n",p.Name)
-        fmt.Printf("\n")
-        fmt.Printf("Global Options\n")
-        fmt.Printf("--------------\n")
-        fmt.Printf("\n")
-        for _,flag:=range p.Flags(){
-                fmt.Printf("\t%v\n",flag)
-        }
-        fmt.Printf("Commands\n")
-        fmt.Printf("--------\n")
-        fmt.Printf("\n")
-        for _,cmd:=range p.Commands{
-                fmt.Printf("\t%v\t\t%v\n",cmd.Name,cmd.Description)
-        }
+func (h *HelpPrinter) VisitParser(p Parser) {
+	fmt.Printf("Usage: %v [global_options] command [arguments]\n", p.Name)
+	fmt.Printf("\n")
+	fmt.Printf("Global Options\n")
+	fmt.Printf("--------------\n")
+	fmt.Printf("\n")
+	for _, flag := range p.Flags() {
+		fmt.Printf("\t%v\n", flag)
+	}
+	fmt.Printf("Commands\n")
+	fmt.Printf("--------\n")
+	fmt.Printf("\n")
+	for _, cmd := range p.Commands {
+		fmt.Printf("\t%v\t\t%v\n", cmd.Name, cmd.Description)
+	}
+
+	fmt.Printf("\n")
+	fmt.Printf("\t%v\t\t%v\n", p.help.Name, p.help.Description)
 }
 
-
-
+func (h *HelpPrinter) VisitCommand(c Command) {
+        fmt.Printf("%v\t\t%v\n", c.Name, c.Description)
+	fmt.Printf("\n")
+        for _, flag := range c.Flags() {
+                fmt.Printf("\t%v\n", flag)
+        }
+}

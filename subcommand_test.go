@@ -83,7 +83,7 @@ func TestEmptyShort(t *testing.T) {
 func TestAddCommand(t *testing.T) {
 	name := "com"
 	parser := NewParser("test")
-	command := parser.AddCommand(name,"", emptyFnMult)
+	command := parser.AddCommand(name, "", emptyFnMult)
 	if command.Name != name {
 		t.Errorf("Command name are not equals %v!=%v", command.Name, name)
 	}
@@ -101,8 +101,8 @@ func TestAddCommandTwice(t *testing.T) {
 	}()
 	name := "com"
 	parser := NewParser("test")
-	parser.AddCommand(name,"", emptyFnMult)
-	parser.AddCommand(name,"", emptyFnMult)
+	parser.AddCommand(name, "", emptyFnMult)
+	parser.AddCommand(name, "", emptyFnMult)
 }
 
 func TestParseGlobalOption(t *testing.T) {
@@ -182,7 +182,7 @@ func TestParseGlobalOptionEmpty(t *testing.T) {
 func TestParseCommand(t *testing.T) {
 	parser := NewParser("test")
 	proc := false
-	parser.AddCommand("command", "",func(string, ...string) {
+	parser.AddCommand("command", "", func(string, ...string) {
 		proc = true
 	})
 	parser.Parse([]string{"command"})
@@ -193,7 +193,7 @@ func TestParseCommand(t *testing.T) {
 
 func TestParseUnknown(t *testing.T) {
 	parser := NewParser("test")
-	parser.AddCommand("command", "",func(string, ...string) {
+	parser.AddCommand("command", "", func(string, ...string) {
 	})
 	leftOvers, _ := parser.Parse([]string{"paco", "pepe"})
 	if len(leftOvers) != 2 {
@@ -218,7 +218,7 @@ func TestParseInnerFlagCommand(t *testing.T) {
 	parser.AddSwitch("switch", "s", "This is a global switch", func(string) {
 		shouldnt = true
 	})
-	cmd := parser.AddCommand("command", "",func(string, ...string) {
+	cmd := parser.AddCommand("command", "", func(string, ...string) {
 	})
 	cmd.AddSwitch("switch", "s", "This is a command switch", func(string) {
 		proc = true
@@ -238,7 +238,7 @@ func TestParseCommandWithLefts(t *testing.T) {
 	var arg1 string
 	var arg2 string
 
-	parser.AddCommand("command", "",func(command string, args ...string) {
+	parser.AddCommand("command", "", func(command string, args ...string) {
 		name = command
 		arg1 = args[0]
 		arg2 = args[1]
@@ -257,16 +257,17 @@ func TestParseCommandWithLefts(t *testing.T) {
 	}
 }
 
-//func TestDefaultPrinter(t *testing.T) {
+/*func TestDefaultPrinter(t *testing.T) {*/
 	//parser := NewParser("test")
 	//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
 	//})
-	//parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
-	//}).Must(true)
+	////parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
+	////}).Must(true)
 	//parser.AddOption("option", "o", "This is a global option", func(string) {
 	//})
-	//parser.AddCommand("command", "This is a global command",func(string, ...string) {
-	//})
-        //hPrinter:=&HelpPrinter{}
-        //hPrinter.VisitParser(*parser)
-//}
+        //cmd:=parser.AddCommand("command", "This is a global command", func(string, ...string) {})
+	//cmd.AddOption("comopt","o", "This is a command optoin", func(string) {})
+	////hPrinter:=&HelpPrinter{}
+	////hPrinter.VisitParser(*parser)
+	//parser.Parse([]string{"help","command"})
+/*}*/
