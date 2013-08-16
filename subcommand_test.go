@@ -261,6 +261,20 @@ func TestParseCommandWithLefts(t *testing.T) {
 	}
 }
 
+func TestSetHelp(t *testing.T) {
+	parser := NewParser("test")
+        helped:=false
+	parser.SetHelp("canihazhelp", "", func(command string, args ...string) {
+                helped=true
+	})
+
+	parser.Parse([]string{"canihazhelp", "arg1", "arg2"})
+	if !helped {
+		t.Error("Help didn't work")
+	}
+
+}
+
 /*func TestDefaultPrinter(t stringt*testing.T) {*/
 //parser := NewParser("test")
 //parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
