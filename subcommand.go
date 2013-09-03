@@ -221,10 +221,10 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			visited = append(visited, *opt)
 		} else {
 			//_,isParser:=currentCommand.(Parser)
-			if ok, flag := checkVisited(visited, currentCommand.Flags()); !ok {
-				err = fmt.Errorf("%v was not found and is mandatory for %v", flag, currentCommand)
+			if err = checkVisited(visited, currentCommand); err != nil {
 				return
 			}
+			visited = []Flag{}
 			cmd, ok := p.Commands[arg]
 			//if its a command
 			if ok && currentCommand.Name != p.help.Name {
@@ -240,6 +240,8 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 		}
 
 	}
+	//last check for visited
+	err = checkVisited(visited, currentCommand)
 
 	return
 }
@@ -252,8 +254,8 @@ func commandCaller(command string, leftOvers *[]string, fn func(string, ...strin
 }
 
 //checks if the mandatory flags were visited
-func checkVisited(visited []Flag, commandFlags []Flag) (visted bool, err Flag) {
-	for _, flag := range commandFlags {
+func checkVisited(visited []Flag, command Command) error {
+	for _, flag := range command.Flags() {
 		if flag.Mandatory {
 			ok := false
 			for _, vFlag := range visited {
@@ -263,11 +265,11 @@ func checkVisited(visited []Flag, commandFlags []Flag) (visted bool, err Flag) {
 				}
 			}
 			if !ok {
-				return false, flag
+				return fmt.Errorf("%v was not found and is mandatory for %v", flag, command)
 			}
 		}
 	}
-	return true, err
+	return nil
 }
 
 //Flag structure

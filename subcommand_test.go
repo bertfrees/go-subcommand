@@ -236,6 +236,45 @@ func TestParseInnerFlagCommand(t *testing.T) {
 	}
 }
 
+func TestParseMandatorySwitch(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) {
+	}).Must(true)
+	_, err := parser.Parse([]string{""})
+	if err == nil {
+		t.Error("Mandatory switch didn't complain")
+	}
+}
+
+func TestParseMandatoryOption(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddOption("option", "o", "This is a mandatory option", func(string, string) {
+	}).Must(true)
+	_, err := parser.Parse([]string{"command"})
+	if err == nil {
+		t.Error("Mandatory option didn't complain")
+	}
+}
+func TestParseMandatoryInnerOption(t *testing.T) {
+	parser := NewParser("test")
+	cmd := parser.AddCommand("command", "", func(string, ...string) {})
+	cmd.AddOption("option", "o", "This is a mandatory option", func(string, string) {
+	}).Must(true)
+	_, err := parser.Parse([]string{"command"})
+	if err == nil {
+		t.Error("Mandatory inner option didn't complain")
+	}
+}
+
+func TestParseMandatoryInnerSwitch(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) {
+	}).Must(true)
+	_, err := parser.Parse([]string{"command"})
+	if err == nil {
+		t.Error("Mandatory switch didn't complain")
+	}
+}
 func TestParseCommandWithLefts(t *testing.T) {
 	parser := NewParser("test")
 	var name string
@@ -263,9 +302,9 @@ func TestParseCommandWithLefts(t *testing.T) {
 
 func TestSetHelp(t *testing.T) {
 	parser := NewParser("test")
-        helped:=false
+	helped := false
 	parser.SetHelp("canihazhelp", "", func(command string, args ...string) {
-                helped=true
+		helped = true
 	})
 
 	parser.Parse([]string{"canihazhelp", "arg1", "arg2"})
