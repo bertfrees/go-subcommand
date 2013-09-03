@@ -42,7 +42,15 @@ func TestBuildFlagOk(t *testing.T) {
 	if f.Mandatory {
 		t.Error("Option mandatory not properly set")
 	}
+        f =buildFlag("option", "", "", emptyFn, Option)
+	f2 = buildFlag("switch", "", "", emptyFn, Switch)
 
+	if f.Type != Option {
+		t.Error("Option type not properly set (empty short)")
+	}
+	if f2.Type != Switch {
+		t.Error("Switch type not properly set (empty short)")
+	}
 }
 
 func TestBuildFlagInvalidLong(t *testing.T) {
@@ -72,14 +80,6 @@ func TestEmptyLong(t *testing.T) {
 	buildFlag("", "o", "", emptyFn, Option)
 }
 
-func TestEmptyShort(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Not panicked with empty short definition")
-		}
-	}()
-	buildFlag("option", "", "", emptyFn, Option)
-}
 func TestAddCommand(t *testing.T) {
 	name := "com"
 	parser := NewParser("test")
@@ -314,16 +314,16 @@ func TestSetHelp(t *testing.T) {
 
 }
 
-/*func TestDefaultPrinter(t stringt*testing.T) {*/
+//func TestDefaultPrinter(t *testing.T) {
 //parser := NewParser("test")
-//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string) {
+//parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string,string) {
 //})
 ////parser.AddOption("mandatory", "m", "This is a global mandatry option", func(string) {
 ////}).Must(true)
-//parser.AddOption("option", "o", "This is a global option", func(string) {
+//parser.AddOption("option", "", "This is a global option", func(string,string) {
 //})
 //cmd:=parser.AddCommand("command", "This is a global command", func(string, ...string) {})
-//cmd.AddOption("comopt","o", "This is a command optoin", func(string) {})
+//cmd.AddOption("comopt","", "This is a command optoin", func(string,string) {})
 ////hPrinter:=&HelpPrinter{}
 ////hPrinter.VisitParser(*parser)
 //parser.Parse([]string{"help","command"})

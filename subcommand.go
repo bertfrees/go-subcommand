@@ -153,13 +153,15 @@ func (c *Command) addFlag(flag *Flag) {
 
 	if _, exists := c.innerFlagsLong[flag.Long]; exists {
 		panic(fmt.Errorf("Flag '%s' already exists ", flag.Long))
-	}
-	if _, exists := c.innerFlagsShort[flag.Short]; exists {
-		panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
-	}
+        }
+        if _, exists := c.innerFlagsShort[flag.Short]; exists {
+                panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
+        }
+        c.innerFlagsLong[flag.Long] = flag
+        if flag.Short!=""{
+                c.innerFlagsShort[flag.Short] = flag
+        }
 
-	c.innerFlagsLong[flag.Long] = flag
-	c.innerFlagsShort[flag.Short] = flag
 
 }
 
@@ -301,16 +303,20 @@ func (f *Flag) Must(isIt bool) {
 func (f Flag) String() string {
 	var format string
 	var help string
+        shortFormat:="%v"
+        if f.Short!=""{
+                shortFormat="--%v,"
+        }
 	if f.Type == Option {
 		if f.Mandatory {
-			format = "-%v, --%v %v\t%v"
+			format = "--%v %v\t%v"
 		} else {
-			format = "-%v, --%v [%v]\t%v"
+			format = "--%v [%v]\t%v"
 		}
-		help = fmt.Sprintf(format, f.Short, f.Long, strings.ToUpper(f.Long), f.Description)
+		help = fmt.Sprintf(shortFormat+format, f.Short, f.Long, strings.ToUpper(f.Long), f.Description)
 	} else {
-		format = "-%v, --%v \t%v"
-		help = fmt.Sprintf(format, f.Short, f.Long, f.Description)
+		format = "--%v \t%v"
+		help = fmt.Sprintf(shortFormat+format, f.Short, f.Long, f.Description)
 	}
 	return help
 }
@@ -327,9 +333,6 @@ func buildFlag(long string, short string, desc string, fn func(string, string), 
 	short = strings.Trim(short, " ")
 	if len(long) == 0 {
 		panic("Long definition is empty")
-	}
-	if len(short) == 0 {
-		panic("Short definition is empty")
 	}
 
 	if !checkDefinition(long) {
