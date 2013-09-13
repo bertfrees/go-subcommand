@@ -192,6 +192,7 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	var visited []Flag
 	//functions to call once the parsing process is over
 	var currentCommand Command = p.Command
+        var currentFunc func()
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -231,10 +232,13 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			//if its a command
 			if ok && currentCommand.Name != p.help.Name {
 				currentCommand = *cmd
-				functions = append(functions, commandCaller(arg, &leftOvers, cmd.fn))
-			} else if arg == p.help.Name { //it's the help
-				currentCommand = p.help
-				functions = append(functions, commandCaller(arg, &leftOvers, p.help.fn))
+                                //make sure that the command is the last thing to be executed
+                                currentFunc=commandCaller(arg, &leftOvers, cmd.fn)
+                        } else if arg == p.help.Name { //it's the help
+                                currentCommand = p.help
+                                //make sure that the command is the last thing to be executed
+                                currentFunc=commandCaller(arg, &leftOvers, p.help.fn)
+                                //functions = append(functions, commandCaller(arg, &leftOvers, p.help.fn))
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
@@ -242,6 +246,9 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 		}
 
 	}
+        if currentFunc!=nil{
+                functions=append(functions,currentFunc)
+        }
 	//last check for visited
 	err = checkVisited(visited, currentCommand)
 
