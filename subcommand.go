@@ -153,15 +153,14 @@ func (c *Command) addFlag(flag *Flag) {
 
 	if _, exists := c.innerFlagsLong[flag.Long]; exists {
 		panic(fmt.Errorf("Flag '%s' already exists ", flag.Long))
-        }
-        if _, exists := c.innerFlagsShort[flag.Short]; exists {
-                panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
-        }
-        c.innerFlagsLong[flag.Long] = flag
-        if flag.Short!=""{
-                c.innerFlagsShort[flag.Short] = flag
-        }
-
+	}
+	if _, exists := c.innerFlagsShort[flag.Short]; exists {
+		panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
+	}
+	c.innerFlagsLong[flag.Long] = flag
+	if flag.Short != "" {
+		c.innerFlagsShort[flag.Short] = flag
+	}
 
 }
 
@@ -192,7 +191,7 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	var visited []Flag
 	//functions to call once the parsing process is over
 	var currentCommand Command = p.Command
-        var currentFunc func()
+	var currentFunc func()
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -227,18 +226,18 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 			if err = checkVisited(visited, currentCommand); err != nil {
 				return
 			}
-			visited = []Flag{}
 			cmd, ok := p.Commands[arg]
 			//if its a command
 			if ok && currentCommand.Name != p.help.Name {
+				visited = []Flag{}
 				currentCommand = *cmd
-                                //make sure that the command is the last thing to be executed
-                                currentFunc=commandCaller(arg, &leftOvers, cmd.fn)
-                        } else if arg == p.help.Name { //it's the help
-                                currentCommand = p.help
-                                //make sure that the command is the last thing to be executed
-                                currentFunc=commandCaller(arg, &leftOvers, p.help.fn)
-                                //functions = append(functions, commandCaller(arg, &leftOvers, p.help.fn))
+				//make sure that the command is the last thing to be executed
+				currentFunc = commandCaller(arg, &leftOvers, cmd.fn)
+			} else if arg == p.help.Name { //it's the help
+				visited = []Flag{}
+				currentCommand = p.help
+				//make sure that the command is the last thing to be executed
+				currentFunc = commandCaller(arg, &leftOvers, p.help.fn)
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
@@ -246,9 +245,9 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 		}
 
 	}
-        if currentFunc!=nil{
-                functions=append(functions,currentFunc)
-        }
+	if currentFunc != nil {
+		functions = append(functions, currentFunc)
+	}
 	//last check for visited
 	err = checkVisited(visited, currentCommand)
 
@@ -310,10 +309,10 @@ func (f *Flag) Must(isIt bool) {
 func (f Flag) String() string {
 	var format string
 	var help string
-        shortFormat:="%v"
-        if f.Short!=""{
-                shortFormat="--%v,"
-        }
+	shortFormat := "%v"
+	if f.Short != "" {
+		shortFormat = "--%v,"
+	}
 	if f.Type == Option {
 		if f.Mandatory {
 			format = "--%v %v\t%v"

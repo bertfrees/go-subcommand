@@ -42,7 +42,7 @@ func TestBuildFlagOk(t *testing.T) {
 	if f.Mandatory {
 		t.Error("Option mandatory not properly set")
 	}
-        f =buildFlag("option", "", "", emptyFn, Option)
+	f = buildFlag("option", "", "", emptyFn, Option)
 	f2 = buildFlag("switch", "", "", emptyFn, Switch)
 
 	if f.Type != Option {
@@ -288,6 +288,46 @@ func TestParseCommandWithLefts(t *testing.T) {
 	})
 
 	parser.Parse([]string{"command", "arg1", "arg2"})
+	if name != "command" {
+		t.Errorf("command name %v", name)
+	}
+
+	if arg1 != "arg1" {
+		t.Errorf("arg1 != %v", arg1)
+	}
+	if arg2 != "arg2" {
+		t.Errorf("arg2 != %v", arg2)
+	}
+}
+
+func TestParseCommandWithLeftsMandatoryFlag(t *testing.T) {
+	parser := NewParser("test")
+	var name string
+	var arg1 string
+	var arg2 string
+	visited := false
+	cmd := parser.AddCommand("command", "", func(command string, args ...string) {
+		name = command
+		arg1 = args[0]
+		arg2 = args[1]
+	})
+	cmd.AddOption("opt", "o", "Mandatory option", func(string, string) {
+		visited = true
+	}).Must(true)
+
+	_, err := parser.Parse([]string{"command", "arg1", "arg2"})
+	if err == nil {
+		t.Error("Expected error not thrown")
+	}
+
+	_, err = parser.Parse([]string{"command", "-o", "val", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+
+	if !visited {
+		t.Errorf("Wrong %v\n\tExpected: %v\n\tResult: %v", "visited", visited, !visited)
+	}
 	if name != "command" {
 		t.Errorf("command name %v", name)
 	}
