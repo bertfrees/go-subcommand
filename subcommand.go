@@ -22,7 +22,7 @@ type Command struct {
 	Description     string
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
-	fn              func(command string, leftOvers ...string)
+	fn              func(command string, leftOvers ...string) error
 	parent          *Command
 }
 
@@ -48,7 +48,7 @@ type Parser struct {
 	help     Command
 }
 
-func newCommand(parent *Command, name string, description string, fn func(string, ...string)) *Command {
+func newCommand(parent *Command, name string, description string, fn func(string, ...string) error) *Command {
 	return &Command{
 		Name:            name,
 		innerFlagsShort: make(map[string]*Flag),
@@ -60,7 +60,7 @@ func newCommand(parent *Command, name string, description string, fn func(string
 }
 
 //Sets the help command. There is one default implementation automatically added when the parser is created.
-func (p *Parser) SetHelp(name string, description string, fn func(string, ...string)) *Command {
+func (p *Parser) SetHelp(name string, description string, fn func(string, ...string) error) *Command {
 	command := newCommand(&p.Command, name, description, fn)
 	p.help = *command
 	return command
@@ -82,17 +82,18 @@ func NewParser(program string) *Parser {
 	return parser
 }
 
-func defaultHelp(p *Parser) func(string, ...string) {
-	return func(help string, args ...string) {
+func defaultHelp(p *Parser) func(string, ...string) error {
+	return func(help string, args ...string) error {
 		if len(args) > 0 {
 			if cmd, ok := p.Commands[args[0]]; ok {
 				visitCommand(*cmd)
-				return
+				return nil
 			} else {
 				fmt.Printf("help: command not found %v\n", args[0])
 			}
 		}
 		visitParser(*p)
+		return nil
 	}
 }
 
@@ -107,7 +108,7 @@ func defaultHelp(p *Parser) func(string, ...string) {
 //              fmt.Printf("%v \n",arg)
 //      }
 //}
-func (p *Parser) AddCommand(name string, description string, fn func(string, ...string)) *Command {
+func (p *Parser) AddCommand(name string, description string, fn func(string, ...string) error) *Command {
 	if _, exists := p.Commands[name]; exists {
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
@@ -127,7 +128,7 @@ func (p *Parser) AddCommand(name string, description string, fn func(string, ...
 // func setPath(option,value string){
 //      printf("According the option %v the path is set to %v",option,value);
 //}
-func (c *Command) AddOption(long string, short string, description string, fn func(string, string)) *Flag {
+func (c *Command) AddOption(long string, short string, description string, fn func(string, string) error) *Flag {
 	flag := buildFlag(long, short, description, fn, Option)
 	c.addFlag(flag)
 	return flag
@@ -142,7 +143,7 @@ func (c *Command) AddOption(long string, short string, description string, fn fu
 // func setVerbose(switch string){
 //      printf("I'm get to get quite talkative! I'm set to be %v ",switch);
 //}
-func (c *Command) AddSwitch(long string, short string, description string, fn func(string, string)) *Flag {
+func (c *Command) AddSwitch(long string, short string, description string, fn func(string, string) error) *Flag {
 	flag := buildFlag(long, short, description, fn, Switch)
 	c.addFlag(flag)
 	return flag
@@ -180,18 +181,21 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 		return
 	}
 	for _, fn := range fns {
-		fn()
+		if err := fn(); err != nil {
+			return leftOvers, err
+		}
+
 	}
-	return leftOvers, nil
+	return
 }
 
 //The actual parsing process
-func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, err error) {
+func (p *Parser) parse(args []string) (functions []func() error, leftOvers []string, err error) {
 	//visited flags
 	var visited []Flag
 	//functions to call once the parsing process is over
 	var currentCommand Command = p.Command
-	var currentFunc func()
+	var currentFunc func() error
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -254,11 +258,11 @@ func (p *Parser) parse(args []string) (functions []func(), leftOvers []string, e
 	return
 }
 
-func flagCaller(name, value string, fn func(string, string)) func() {
-	return func() { fn(name, value) }
+func flagCaller(name, value string, fn func(string, string) error) func() error {
+	return func() error { return fn(name, value) }
 }
-func commandCaller(command string, leftOvers *[]string, fn func(string, ...string)) func() {
-	return func() { fn(command, *leftOvers...) }
+func commandCaller(command string, leftOvers *[]string, fn func(string, ...string) error) func() error {
+	return func() error { return fn(command, *leftOvers...) }
 }
 
 //checks if the mandatory flags were visited
@@ -291,7 +295,7 @@ type Flag struct {
 	//FlagType, option or switch
 	Type FlagType
 	//Function to call when the flag is found during the parsing process
-	fn func(string, string)
+	fn func(string, string) error
 	//Says if the flag is optional or mandatory
 	Mandatory bool
 }
@@ -334,7 +338,7 @@ func checkDefinition(flag string) bool {
 }
 
 //builds the flag struct panicking if errors are encountered
-func buildFlag(long string, short string, desc string, fn func(string, string), kind FlagType) *Flag {
+func buildFlag(long string, short string, desc string, fn func(string, string) error, kind FlagType) *Flag {
 	long = strings.Trim(long, " ")
 	short = strings.Trim(short, " ")
 	if len(long) == 0 {

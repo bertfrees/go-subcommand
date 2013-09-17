@@ -1,11 +1,12 @@
 package subcommand
 
 import (
+	"errors"
 	"testing"
 )
 
-var emptyFn = func(name, value string) {}
-var emptyFnMult = func(command string, values ...string) {}
+var emptyFn = func(name, value string) error { return nil }
+var emptyFnMult = func(command string, values ...string) error { return nil }
 
 //build option
 func TestParserOption(t *testing.T) {
@@ -108,10 +109,11 @@ func TestAddCommandTwice(t *testing.T) {
 func TestParseGlobalOption(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddOption("option", "o", "This is an option", func(name, val string) {
+	parser.AddOption("option", "o", "This is an option", func(name, val string) error {
 		if val == "value" && name == "option" {
 			processed = true
 		}
+		return nil
 	})
 	parser.Parse([]string{"--option", "value"})
 	if !processed {
@@ -120,13 +122,26 @@ func TestParseGlobalOption(t *testing.T) {
 
 }
 
+func TestParseGlobalOptionError(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddOption("option", "o", "This is an option", func(name, val string) error {
+		return errors.New("ERROR!")
+	})
+	_, err := parser.Parse([]string{"--option", "value"})
+	if err == nil {
+		t.Error("Error not thrown")
+	}
+
+}
+
 func TestParseGlobalOptionShort(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddOption("option", "o", "This is an option", func(name, val string) {
+	parser.AddOption("option", "o", "This is an option", func(name, val string) error {
 		if val == "value" && name == "option" {
 			processed = true
 		}
+		return nil
 	})
 	parser.Parse([]string{"-o", "value"})
 	if !processed {
@@ -138,10 +153,11 @@ func TestParseGlobalOptionShort(t *testing.T) {
 func TestParseGlobalSwitch(t *testing.T) {
 	parser := NewParser("test")
 	processed := false
-	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) {
+	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) error {
 		if name == "switch" {
 			processed = true
 		}
+		return nil
 	})
 	parser.Parse([]string{"--switch", "value"})
 	if !processed {
@@ -150,14 +166,26 @@ func TestParseGlobalSwitch(t *testing.T) {
 
 }
 
+func TestParseGlobalSwitchError(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) error {
+		return errors.New("Error")
+	})
+	_, err := parser.Parse([]string{"--switch", "value"})
+	if err == nil {
+		t.Error("Error not thrown")
+	}
+
+}
 func TestParseGlobalSwitchShort(t *testing.T) {
 
 	parser := NewParser("test")
 	processed := false
-	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) {
+	parser.AddSwitch("switch", "s", "This is a switch", func(name, val string) error {
 		if name == "switch" {
 			processed = true
 		}
+		return nil
 	})
 	parser.Parse([]string{"-s", "value"})
 	if !processed {
@@ -186,8 +214,9 @@ func TestParseGlobalOptionEmpty(t *testing.T) {
 func TestParseCommand(t *testing.T) {
 	parser := NewParser("test")
 	proc := false
-	parser.AddCommand("command", "", func(string, ...string) {
+	parser.AddCommand("command", "", func(string, ...string) error {
 		proc = true
+		return nil
 	})
 	parser.Parse([]string{"command"})
 	if !proc {
@@ -195,9 +224,21 @@ func TestParseCommand(t *testing.T) {
 	}
 }
 
+func TestParseCommandError(t *testing.T) {
+	parser := NewParser("test")
+	parser.AddCommand("command", "", func(string, ...string) error {
+		return errors.New("Error")
+	})
+	_, err := parser.Parse([]string{"command"})
+	if err == nil {
+		t.Error("Error wasn't thrown")
+	}
+}
+
 func TestParseUnknown(t *testing.T) {
 	parser := NewParser("test")
-	parser.AddCommand("command", "", func(string, ...string) {
+	parser.AddCommand("command", "", func(string, ...string) error {
+		return nil
 	})
 	leftOvers, _ := parser.Parse([]string{"paco", "pepe"})
 	if len(leftOvers) != 2 {
@@ -219,13 +260,16 @@ func TestParseInnerFlagCommand(t *testing.T) {
 	parser := NewParser("test")
 	shouldnt := false
 	proc := false
-	parser.AddSwitch("switch", "s", "This is a global switch", func(string, string) {
+	parser.AddSwitch("switch", "s", "This is a global switch", func(string, string) error {
 		shouldnt = true
+		return nil
 	})
-	cmd := parser.AddCommand("command", "", func(string, ...string) {
+	cmd := parser.AddCommand("command", "", func(string, ...string) error {
+		return nil
 	})
-	cmd.AddSwitch("switch", "s", "This is a command switch", func(string, string) {
+	cmd.AddSwitch("switch", "s", "This is a command switch", func(string, string) error {
 		proc = true
+		return nil
 	})
 	parser.Parse([]string{"command", "-s"})
 	if !proc {
@@ -238,7 +282,8 @@ func TestParseInnerFlagCommand(t *testing.T) {
 
 func TestParseMandatorySwitch(t *testing.T) {
 	parser := NewParser("test")
-	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) {
+	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) error {
+		return nil
 	}).Must(true)
 	_, err := parser.Parse([]string{""})
 	if err == nil {
@@ -248,7 +293,8 @@ func TestParseMandatorySwitch(t *testing.T) {
 
 func TestParseMandatoryOption(t *testing.T) {
 	parser := NewParser("test")
-	parser.AddOption("option", "o", "This is a mandatory option", func(string, string) {
+	parser.AddOption("option", "o", "This is a mandatory option", func(string, string) error {
+		return nil
 	}).Must(true)
 	_, err := parser.Parse([]string{"command"})
 	if err == nil {
@@ -257,8 +303,9 @@ func TestParseMandatoryOption(t *testing.T) {
 }
 func TestParseMandatoryInnerOption(t *testing.T) {
 	parser := NewParser("test")
-	cmd := parser.AddCommand("command", "", func(string, ...string) {})
-	cmd.AddOption("option", "o", "This is a mandatory option", func(string, string) {
+	cmd := parser.AddCommand("command", "", func(string, ...string) error { return nil })
+	cmd.AddOption("option", "o", "This is a mandatory option", func(string, string) error {
+		return nil
 	}).Must(true)
 	_, err := parser.Parse([]string{"command"})
 	if err == nil {
@@ -268,7 +315,8 @@ func TestParseMandatoryInnerOption(t *testing.T) {
 
 func TestParseMandatoryInnerSwitch(t *testing.T) {
 	parser := NewParser("test")
-	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) {
+	parser.AddSwitch("switch", "s", "This is a mandatory switch", func(string, string) error {
+		return nil
 	}).Must(true)
 	_, err := parser.Parse([]string{"command"})
 	if err == nil {
@@ -281,10 +329,11 @@ func TestParseCommandWithLefts(t *testing.T) {
 	var arg1 string
 	var arg2 string
 
-	parser.AddCommand("command", "", func(command string, args ...string) {
+	parser.AddCommand("command", "", func(command string, args ...string) error {
 		name = command
 		arg1 = args[0]
 		arg2 = args[1]
+		return nil
 	})
 
 	parser.Parse([]string{"command", "arg1", "arg2"})
@@ -306,13 +355,15 @@ func TestParseCommandWithLeftsMandatoryFlag(t *testing.T) {
 	var arg1 string
 	var arg2 string
 	visited := false
-	cmd := parser.AddCommand("command", "", func(command string, args ...string) {
+	cmd := parser.AddCommand("command", "", func(command string, args ...string) error {
 		name = command
 		arg1 = args[0]
 		arg2 = args[1]
+		return nil
 	})
-	cmd.AddOption("opt", "o", "Mandatory option", func(string, string) {
+	cmd.AddOption("opt", "o", "Mandatory option", func(string, string) error {
 		visited = true
+		return nil
 	}).Must(true)
 
 	_, err := parser.Parse([]string{"command", "arg1", "arg2"})
@@ -343,8 +394,9 @@ func TestParseCommandWithLeftsMandatoryFlag(t *testing.T) {
 func TestSetHelp(t *testing.T) {
 	parser := NewParser("test")
 	helped := false
-	parser.SetHelp("canihazhelp", "", func(command string, args ...string) {
+	parser.SetHelp("canihazhelp", "", func(command string, args ...string) error {
 		helped = true
+		return nil
 	})
 
 	parser.Parse([]string{"canihazhelp", "arg1", "arg2"})
