@@ -19,7 +19,8 @@ const (
 type Command struct {
 	//Name
 	Name            string
-	Description     string
+	Description     string //Command help line
+	Params          string //Description of the parameters
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
 	fn              func(command string, leftOvers ...string) error
@@ -38,7 +39,13 @@ func (c *Command) Flags() []Flag {
 	for _, val := range c.innerFlagsLong {
 		flags = append(flags, *val)
 	}
+
 	return flags
+}
+
+//Returns the command parent
+func (c Command) Parent() *Command {
+	return c.parent
 }
 
 //Parser contains other commands. It's the data structure and its name should be the program's name.
