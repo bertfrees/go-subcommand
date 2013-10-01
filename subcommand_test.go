@@ -405,6 +405,23 @@ func TestSetHelp(t *testing.T) {
 	}
 
 }
+func TestOnCommand(t *testing.T) {
+	parser := NewParser("test")
+	onCommand := false
+	parser.OnCommand(func() error {
+		onCommand = true
+		return nil
+	})
+	parser.AddCommand("command", "", func(string, ...string) error { return nil })
+	_, err := parser.Parse([]string{"command"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if !onCommand {
+		t.Error("On command didn't executed")
+	}
+
+}
 
 //func TestDefaultPrinter(t *testing.T) {
 //parser := NewParser("test")

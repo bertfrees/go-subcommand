@@ -73,16 +73,23 @@ func (p *Parser) SetHelp(name string, description string, fn func(string, ...str
 	return command
 
 }
+func (p *Parser) OnCommand(fn func() error) {
+	p.Command.fn = func(string, ...string) error {
+		return fn()
+	}
+}
 
 //Returns the help command
 func (p Parser) Help() Command {
 	return p.help
 }
 
+type CommandFunction func(string, ...string) error
+
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
 	parser := &Parser{
-		Command:  *newCommand(nil, program, "", nil),
+		Command:  *newCommand(nil, program, "", func(string, ...string) error { return nil }),
 		Commands: make(map[string]*Command),
 	}
 	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(parser))
@@ -202,7 +209,7 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 	var visited []Flag
 	//functions to call once the parsing process is over
 	var currentCommand Command = p.Command
-	var currentFunc func() error
+	var currentFunc func() error = commandCaller(p.Name, &leftOvers, p.Command.fn)
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -239,16 +246,18 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 			}
 			cmd, ok := p.Commands[arg]
 			//if its a command
-			if ok && currentCommand.Name != p.help.Name {
+			if isHelp := (arg == p.help.Name); ok || isHelp {
 				visited = []Flag{}
-				currentCommand = *cmd
-				//make sure that the command is the last thing to be executed
-				currentFunc = commandCaller(arg, &leftOvers, cmd.fn)
-			} else if arg == p.help.Name { //it's the help
-				visited = []Flag{}
-				currentCommand = p.help
-				//make sure that the command is the last thing to be executed
-				currentFunc = commandCaller(arg, &leftOvers, p.help.fn)
+				if currentFunc != nil {
+					functions = append(functions, currentFunc)
+				}
+				if !isHelp {
+					currentCommand = *cmd
+					currentFunc = commandCaller(arg, &leftOvers, cmd.fn)
+				} else {
+					currentCommand = p.help
+					currentFunc = commandCaller(arg, &leftOvers, p.help.fn)
+				}
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
