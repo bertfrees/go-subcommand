@@ -249,7 +249,10 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 			if isHelp := (arg == p.help.Name); ok || isHelp {
 				visited = []Flag{}
 				if currentFunc != nil {
-					functions = append(functions, currentFunc)
+					if err := currentFunc(); err != nil {
+						return functions, leftOvers, err
+					}
+					//functions = append(functions, currentFunc)
 				}
 				if !isHelp {
 					currentCommand = *cmd
