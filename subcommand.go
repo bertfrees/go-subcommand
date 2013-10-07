@@ -205,6 +205,7 @@ func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
 
 //The actual parsing process
 func (p *Parser) parse(args []string) (functions []func() error, leftOvers []string, err error) {
+	//TODO : rewrite the parsing algorithm to make it a bit more clean and clever...
 	//visited flags
 	var visited []Flag
 	//functions to call once the parsing process is over
@@ -245,10 +246,17 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 			if err = checkVisited(visited, currentCommand); err != nil {
 				return
 			}
+			for _, fn := range functions {
+				if err = fn(); err != nil {
+					return
+				}
+
+			}
+			functions = make([]func() error, 0)
 			if onCommand != nil {
 
-				if err := onCommand(); err != nil {
-					return functions, leftOvers, err
+				if err = onCommand(); err != nil {
+					return
 				}
 				onCommand = nil
 				//functions = append(functions, currentFunc)
@@ -337,7 +345,7 @@ func (f Flag) String() string {
 	var help string
 	shortFormat := "%v"
 	if f.Short != "" {
-		shortFormat = "--%v,"
+		shortFormat = "-%v,"
 	}
 	if f.Type == Option {
 		if f.Mandatory {
