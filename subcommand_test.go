@@ -336,7 +336,11 @@ func TestParseCommandWithLefts(t *testing.T) {
 		return nil
 	})
 
-	parser.Parse([]string{"command", "arg1", "arg2"})
+	_, err := parser.Parse([]string{"command", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+
 	if name != "command" {
 		t.Errorf("command name %v", name)
 	}

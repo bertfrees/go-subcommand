@@ -209,7 +209,8 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 	var visited []Flag
 	//functions to call once the parsing process is over
 	var currentCommand Command = p.Command
-	var currentFunc func() error = commandCaller(p.Name, &leftOvers, p.Command.fn)
+	var currentFunc func() error = nil
+	var onCommand func() error = commandCaller(p.Name, &leftOvers, p.Command.fn)
 	//go comsuming options commands and sub-options
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -244,16 +245,18 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 			if err = checkVisited(visited, currentCommand); err != nil {
 				return
 			}
+			if onCommand != nil {
+
+				if err := onCommand(); err != nil {
+					return functions, leftOvers, err
+				}
+				onCommand = nil
+				//functions = append(functions, currentFunc)
+			}
 			cmd, ok := p.Commands[arg]
 			//if its a command
 			if isHelp := (arg == p.help.Name); ok || isHelp {
 				visited = []Flag{}
-				if currentFunc != nil {
-					if err := currentFunc(); err != nil {
-						return functions, leftOvers, err
-					}
-					//functions = append(functions, currentFunc)
-				}
 				if !isHelp {
 					currentCommand = *cmd
 					currentFunc = commandCaller(arg, &leftOvers, cmd.fn)
