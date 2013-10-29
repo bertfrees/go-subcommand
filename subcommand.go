@@ -261,9 +261,10 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 				onCommand = nil
 				//functions = append(functions, currentFunc)
 			}
+			println(arg)
 			cmd, ok := p.Commands[arg]
 			//if its a command
-			if isHelp := (arg == p.help.Name); ok || isHelp {
+			if isHelp := (arg == p.help.Name); (ok || isHelp) && currentCommand.Name != p.help.Name {
 				visited = []Flag{}
 				if !isHelp {
 					currentCommand = *cmd

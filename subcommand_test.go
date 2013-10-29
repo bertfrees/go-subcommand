@@ -409,6 +409,28 @@ func TestSetHelp(t *testing.T) {
 	}
 
 }
+
+func TestSetHelpWithCommand(t *testing.T) {
+	parser := NewParser("test")
+	helped := false
+	parser.SetHelp("canihazhelp", "", func(command string, args ...string) error {
+		helped = true
+		return nil
+	})
+
+	cmd := parser.AddCommand("command", "", func(command string, args ...string) error {
+		return nil
+	})
+	cmd.AddOption("opt", "o", "Mandatory option", func(string, string) error {
+		return nil
+	}).Must(true)
+
+	parser.Parse([]string{"canihazhelp", "arg1", "arg2"})
+	if !helped {
+		t.Error("Help didn't work")
+	}
+
+}
 func TestOnCommand(t *testing.T) {
 	parser := NewParser("test")
 	onCommand := false
