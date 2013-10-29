@@ -341,24 +341,28 @@ func (f *Flag) Must(isIt bool) {
 //-s,--switch                   This is a switch
 //-i,--ignoreme [IGNOREME]      Optional option
 func (f Flag) String() string {
+	return fmt.Sprintf("%s\t%s", f.FlagStringPrefix(), f.Description)
+}
+
+func (f Flag) FlagStringPrefix() string {
 	var format string
-	var help string
+	var prefix string
 	shortFormat := "%v"
 	if f.Short != "" {
 		shortFormat = "-%v,"
 	}
 	if f.Type == Option {
 		if f.Mandatory {
-			format = "--%v %v\t%v"
+			format = "--%v %v"
 		} else {
-			format = "--%v [%v]\t%v"
+			format = "--%v [%v]"
 		}
-		help = fmt.Sprintf(shortFormat+format, f.Short, f.Long, strings.ToUpper(f.Long), f.Description)
+		prefix = fmt.Sprintf(shortFormat+format, f.Short, f.Long, strings.ToUpper(f.Long))
 	} else {
 		format = "--%v \t%v"
-		help = fmt.Sprintf(shortFormat+format, f.Short, f.Long, f.Description)
+		prefix = fmt.Sprintf(shortFormat+format, f.Short, f.Long)
 	}
-	return help
+	return prefix
 }
 
 //Checks that the definition is just one word
