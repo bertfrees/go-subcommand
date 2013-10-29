@@ -359,7 +359,7 @@ func (f Flag) FlagStringPrefix() string {
 		}
 		prefix = fmt.Sprintf(shortFormat+format, f.Short, f.Long, strings.ToUpper(f.Long))
 	} else {
-		format = "--%v \t%v"
+		format = "--%v"
 		prefix = fmt.Sprintf(shortFormat+format, f.Short, f.Long)
 	}
 	return prefix
