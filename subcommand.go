@@ -24,6 +24,7 @@ type Command struct {
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
 	fn              func(command string, leftOvers ...string) error
+	postFlagsFn     func() error
 	parent          *Command
 }
 
@@ -61,6 +62,7 @@ func newCommand(parent *Command, name string, description string, fn func(string
 		innerFlagsShort: make(map[string]*Flag),
 		innerFlagsLong:  make(map[string]*Flag),
 		fn:              fn,
+		postFlagsFn:     func() error { return nil },
 		Description:     description,
 		parent:          parent,
 	}
@@ -73,10 +75,16 @@ func (p *Parser) SetHelp(name string, description string, fn func(string, ...str
 	return command
 
 }
-func (p *Parser) OnCommand(fn func() error) {
-	p.Command.fn = func(string, ...string) error {
-		return fn()
-	}
+
+//First level execution when parsing. The passed function is exectued taking the leftovers until the first command
+//./prog -switch left1 left2 command
+//in this case name will be prog, and left overs left1 and left2
+func (p *Parser) OnCommand(fn func(name string, leftOvers ...string) error) {
+	p.fn = fn
+}
+
+func (p *Parser) PostFlags(fn func() error) {
+	p.postFlagsFn = fn
 }
 
 //Returns the help command
@@ -188,90 +196,55 @@ func (c *Command) String() string {
 //Errors are returned in case an unknown flag is found or a mandatory flag was not supplied.
 // The set of function calls to be performed are carried in order and once the parsing process is done
 func (p *Parser) Parse(args []string) (leftOvers []string, err error) {
-	//get the delayed functions to call
-	//for every flag//command
-	fns, leftOvers, err := p.parse(args)
+	err = p.parse(args, p.Command)
 	if err != nil {
 		return
-	}
-	for _, fn := range fns {
-		if err := fn(); err != nil {
-			return leftOvers, err
-		}
-
 	}
 	return
 }
 
 //The actual parsing process
-func (p *Parser) parse(args []string) (functions []func() error, leftOvers []string, err error) {
+func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 	//TODO : rewrite the parsing algorithm to make it a bit more clean and clever...
 	//visited flags
-	var visited []Flag
+	var flagsToCall []flagCallable
+	var leftOvers []string
+	var nextCommandCall func() error
+	i := 0
 	//functions to call once the parsing process is over
-	var currentCommand Command = p.Command
-	var currentFunc func() error = nil
-	var onCommand func() error = commandCaller(p.Name, &leftOvers, p.Command.fn)
 	//go comsuming options commands and sub-options
-	for i := 0; i < len(args); i++ {
+	for ; i < len(args); i++ {
 		arg := args[i]
 		if strings.HasPrefix(arg, "-") { //flag
-			var opt *Flag
-			var ok bool
-			if strings.HasPrefix(arg, "--") {
-				opt, ok = currentCommand.innerFlagsLong[arg[2:]]
-			} else {
-				opt, ok = currentCommand.innerFlagsShort[arg[1:]]
-			}
-			//not present
-			if !ok {
-				err = fmt.Errorf("%v is not a valid flag for %v", arg, currentCommand.Name)
+			var fCallable flagCallable
+			fCallable, i, err = currentCommand.parseFlag(args, i)
+			flagsToCall = append(flagsToCall, fCallable)
+			if err != nil {
 				return
 			}
 
-			if opt.Type == Option { //option
-				if i+1 >= len(args) {
-					err = fmt.Errorf("No value for option %v", arg)
-					return
-				}
-				functions = append(functions, flagCaller(opt.Long, args[i+1], opt.fn))
-				i++
-			} else { //switch
-				functions = append(functions, flagCaller(opt.Long, "", opt.fn))
-			}
-			//add to visited options
-			visited = append(visited, *opt)
-		} else {
-			//_,isParser:=currentCommand.(Parser)
-			if err = checkVisited(visited, currentCommand); err != nil {
+		} else { //command or leftover
+			//call the flags
+			if err = currentCommand.callFlags(flagsToCall); err != nil {
 				return
 			}
-			for _, fn := range functions {
-				if err = fn(); err != nil {
-					return
+
+			cmd, isCommand := p.Commands[arg]
+			//if its a command or help
+			if isHelp := (arg == p.help.Name); (isCommand || isHelp) && currentCommand.Name != p.help.Name {
+				nextCommandCall = func() error {
+					if isHelp {
+						cmd = &(p.help)
+					}
+					//call with the rest of the args
+					err := p.parse(append(args[:i], args[i+1:]...), *cmd)
+					if err != nil {
+						return err
+					}
+					return nil
 				}
 
-			}
-			functions = make([]func() error, 0)
-			if onCommand != nil {
-
-				if err = onCommand(); err != nil {
-					return
-				}
-				onCommand = nil
-				//functions = append(functions, currentFunc)
-			}
-			cmd, ok := p.Commands[arg]
-			//if its a command
-			if isHelp := (arg == p.help.Name); (ok || isHelp) && currentCommand.Name != p.help.Name {
-				visited = []Flag{}
-				if !isHelp {
-					currentCommand = *cmd
-					currentFunc = commandCaller(arg, &leftOvers, cmd.fn)
-				} else {
-					currentCommand = p.help
-					currentFunc = commandCaller(arg, &leftOvers, p.help.fn)
-				}
+				break
 			} else {
 				leftOvers = append(leftOvers, arg)
 			}
@@ -279,29 +252,96 @@ func (p *Parser) parse(args []string) (functions []func() error, leftOvers []str
 		}
 
 	}
-	if currentFunc != nil {
-		functions = append(functions, currentFunc)
+	//call the flags
+	if nextCommandCall == nil && len(leftOvers) == 0 {
+		if err = currentCommand.callFlags(flagsToCall); err != nil {
+			return
+		}
 	}
-	//last check for visited
-	err = checkVisited(visited, currentCommand)
+	//call current command
+	if err = currentCommand.exec(leftOvers); err != nil {
+		return
+	}
+	//look for next command
+	if nextCommandCall != nil {
+		return nextCommandCall()
+	}
+	return nil
+}
 
+func (c Command) exec(leftOvers []string) error {
+	if err := c.fn(c.Name, leftOvers...); err != nil {
+		return err
+	}
+	return nil
+}
+func (c Command) callFlags(flagsToCall []flagCallable) error {
+	//check if we got all the mandatory flags
+	if err := checkVisited(flagsToCall, c); err != nil {
+		return err
+	}
+	//call flag functions
+	for _, fc := range flagsToCall {
+		if err := fc.fn(); err != nil {
+			return err
+		}
+
+	}
+	//call post flags
+	return c.postFlagsFn()
+}
+
+//convinience lambda to pass the flag function around
+func flagFunction(name, value string, fn func(string, string) error) func() error {
+	return func() error { return fn(name, value) }
+}
+
+//contains the flag and its fucntion ready to call
+type flagCallable struct {
+	fn   func() error
+	flag Flag
+}
+
+//parses a flag and returns a flag callable to execute and the new position of the args iterator
+func (c Command) parseFlag(args []string, pos int) (callable flagCallable, newPos int, err error) {
+	arg := args[pos]
+	newPos = pos
+	var opt *Flag
+	var ok bool
+	var fn func() error
+	//long or shor definition
+	if strings.HasPrefix(arg, "--") {
+		opt, ok = c.innerFlagsLong[arg[2:]]
+	} else {
+		opt, ok = c.innerFlagsShort[arg[1:]]
+	}
+	//not present
+	if !ok {
+		err = fmt.Errorf("%v is not a valid flag for %v", arg, c.Name)
+		return
+	}
+
+	if opt.Type == Option { //option
+		if pos+1 >= len(args) {
+			err = fmt.Errorf("No value for option %v", arg)
+			return
+		}
+		fn = flagFunction(opt.Long, args[pos+1], opt.fn)
+		newPos = pos + 1
+	} else { //switch
+		fn = flagFunction(opt.Long, "", opt.fn)
+	}
+	callable = flagCallable{fn, *opt}
 	return
 }
 
-func flagCaller(name, value string, fn func(string, string) error) func() error {
-	return func() error { return fn(name, value) }
-}
-func commandCaller(command string, leftOvers *[]string, fn func(string, ...string) error) func() error {
-	return func() error { return fn(command, *leftOvers...) }
-}
-
 //checks if the mandatory flags were visited
-func checkVisited(visited []Flag, command Command) error {
+func checkVisited(visited []flagCallable, command Command) error {
 	for _, flag := range command.Flags() {
 		if flag.Mandatory {
 			ok := false
 			for _, vFlag := range visited {
-				if vFlag.Long == flag.Long {
+				if vFlag.flag.Long == flag.Long {
 					ok = true
 					break
 				}
