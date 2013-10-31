@@ -233,11 +233,12 @@ func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 			//if its a command or help
 			if isHelp := (arg == p.help.Name); (isCommand || isHelp) && currentCommand.Name != p.help.Name {
 				nextCommandCall = func() error {
+					i := i
 					if isHelp {
 						cmd = &(p.help)
 					}
 					//call with the rest of the args
-					err := p.parse(append(args[:i], args[i+1:]...), *cmd)
+					err := p.parse(args[i+1:], *cmd)
 					if err != nil {
 						return err
 					}

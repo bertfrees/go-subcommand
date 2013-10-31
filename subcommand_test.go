@@ -398,13 +398,19 @@ func TestParseCommandWithLeftsMandatoryFlag(t *testing.T) {
 
 func TestSetHelp(t *testing.T) {
 	parser := NewParser("test")
+	parser.AddSwitch("sw", "s", "Switch", func(string, string) error {
+		return nil
+	})
 	helped := false
 	parser.SetHelp("canihazhelp", "", func(command string, args ...string) error {
 		helped = true
 		return nil
 	})
 
-	parser.Parse([]string{"canihazhelp", "arg1", "arg2"})
+	_, err := parser.Parse([]string{"-s", "canihazhelp", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
 	if !helped {
 		t.Error("Help didn't work")
 	}
