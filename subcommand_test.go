@@ -235,28 +235,6 @@ func TestParseCommandError(t *testing.T) {
 	}
 }
 
-//TODO addArity and check
-//func TestParseUnknown(t *testing.T) {
-//parser := NewParser("test")
-//parser.AddCommand("command", "", func(string, ...string) error {
-//return nil
-//})
-//leftOvers, _ := parser.Parse([]string{"paco", "pepe"})
-//if len(leftOvers) != 2 {
-//t.Errorf("the parsing leftovers size isn't 2 (%v)", leftOvers)
-//return
-//}
-
-//if leftOvers[0] != "paco" {
-//t.Error("First element  of the leftovers is wrong")
-//return
-//}
-//if leftOvers[1] != "pepe" {
-//t.Error("Second element of the leftovers is wrong")
-//return
-//}
-//}
-
 func TestParseInnerFlagCommand(t *testing.T) {
 	parser := NewParser("test")
 	shouldnt := false
@@ -478,6 +456,89 @@ func TestPostFlags(t *testing.T) {
 
 	if !command {
 		t.Error("on the fly command didn't execute")
+	}
+}
+
+func TestArityCommandInf(t *testing.T) {
+	parser := NewParser("test")
+	proc := false
+	parser.AddCommand("command", "", func(string, ...string) error {
+		proc = true
+		return nil
+	})
+	//multiple args arity by default
+	_, err := parser.Parse([]string{"command", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+}
+
+func TestArityCommandZero(t *testing.T) {
+	parser := NewParser("test")
+	proc := false
+	parser.AddCommand("command", "", func(string, ...string) error {
+		proc = true
+		return nil
+	}).SetArity(0, "")
+	//zero params ok
+	_, err := parser.Parse([]string{"command"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+
+	//zero params ok
+	_, err = parser.Parse([]string{"command", "arg1"})
+	if err == nil {
+		t.Errorf("Wrong arity didn't complain")
+	}
+}
+
+func TestArityCommandOther(t *testing.T) {
+	parser := NewParser("test")
+	proc := false
+	parser.AddCommand("command", "", func(string, ...string) error {
+		proc = true
+		return nil
+	}).SetArity(2, "arg1 arg2")
+	//two params ok
+	_, err := parser.Parse([]string{"command", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+
+	//zero params wrong
+	_, err = parser.Parse([]string{"command"})
+	if err == nil {
+		t.Errorf("Wrong arity didn't complain")
+	}
+}
+
+func TestArityParserErr(t *testing.T) {
+	parser := NewParser("test")
+	proc := false
+	parser.AddCommand("command", "", func(string, ...string) error {
+		proc = true
+		return nil
+	})
+	//zero arity by default
+	_, err := parser.Parse([]string{"parserArg", "command", "arg1", "arg2"})
+	if err == nil {
+		t.Error("parser arity error didn't complain")
+	}
+}
+
+func TestArityParser(t *testing.T) {
+	parser := NewParser("test")
+	parser.SetArity(-1, "parg1 parg2 ...")
+	proc := false
+	parser.AddCommand("command", "", func(string, ...string) error {
+		proc = true
+		return nil
+	})
+	//multiple args arity by default
+	_, err := parser.Parse([]string{"parserArg", "command", "arg1", "arg2"})
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
 	}
 }
 

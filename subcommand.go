@@ -32,6 +32,7 @@ type Command struct {
 	fn              CommandFunction
 	postFlagsFn     func() error
 	parent          *Command
+	arity           Arity
 }
 
 //Access to flags
@@ -71,6 +72,7 @@ func newCommand(parent *Command, name string, description string, fn CommandFunc
 		postFlagsFn:     func() error { return nil },
 		Description:     description,
 		parent:          parent,
+		arity:           Arity{-1, "arg1,arg2,..."},
 	}
 }
 
@@ -104,6 +106,7 @@ func NewParser(program string) *Parser {
 		Command:  *newCommand(nil, program, "", func(string, ...string) error { return nil }),
 		Commands: make(map[string]*Command),
 	}
+	parser.Command.arity = Arity{0, ""}
 	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(parser))
 	return parser
 }
@@ -175,6 +178,23 @@ func (c *Command) AddSwitch(long string, short string, description string, fn Fl
 	return flag
 }
 
+type Arity struct {
+	Count       int
+	Description string
+}
+
+//Set arity:
+//-1 accepts infinite arguments.
+//Other restricts the arity to the given num
+func (c *Command) SetArity(arity int, description string) *Command {
+	c.arity = Arity{arity, description}
+	return c
+}
+
+func (c Command) Arity() Arity {
+	return c.arity
+}
+
 //Adds a flag to the command
 func (c *Command) addFlag(flag *Flag) {
 
@@ -189,10 +209,6 @@ func (c *Command) addFlag(flag *Flag) {
 		c.innerFlagsShort[flag.Short] = flag
 	}
 
-}
-
-func (c *Command) String() string {
-	return fmt.Sprintf("%v\t %v", c.Name, c.Description)
 }
 
 //Parse parses the arguments executing the associated functions for each command and flag.
@@ -274,12 +290,22 @@ func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 	return nil
 }
 
+//Execute the command function with leftovers as parameters
 func (c Command) exec(leftOvers []string) error {
+	arity := c.Arity().Count
+	//check correct number of params
+	if arity != -1 && arity != len(leftOvers) {
+		return fmt.Errorf("Command %s accepts %v parameters but %v found (%v)",
+			c.Name, arity, len(leftOvers), leftOvers)
+
+	}
 	if err := c.fn(c.Name, leftOvers...); err != nil {
 		return err
 	}
 	return nil
 }
+
+//Call the each flag with the associated value
 func (c Command) callFlags(flagsToCall []flagCallable) error {
 	//check if we got all the mandatory flags
 	if err := checkVisited(flagsToCall, c); err != nil {
