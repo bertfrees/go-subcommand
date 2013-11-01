@@ -15,6 +15,12 @@ const (
 	Switch
 )
 
+//Convinience type for funcions passed to commands
+type CommandFunction func(string, ...string) error
+
+//Convinience type for funcions passed flags
+type FlagFunction func(string, string) error
+
 //Command aggregates different flags under a common name. Every time a command is found during the parsing process the associated function is executed.
 type Command struct {
 	//Name
@@ -23,7 +29,7 @@ type Command struct {
 	Params          string //Description of the parameters
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
-	fn              func(command string, leftOvers ...string) error
+	fn              CommandFunction
 	postFlagsFn     func() error
 	parent          *Command
 }
@@ -56,7 +62,7 @@ type Parser struct {
 	help     Command
 }
 
-func newCommand(parent *Command, name string, description string, fn func(string, ...string) error) *Command {
+func newCommand(parent *Command, name string, description string, fn CommandFunction) *Command {
 	return &Command{
 		Name:            name,
 		innerFlagsShort: make(map[string]*Flag),
@@ -69,7 +75,7 @@ func newCommand(parent *Command, name string, description string, fn func(string
 }
 
 //Sets the help command. There is one default implementation automatically added when the parser is created.
-func (p *Parser) SetHelp(name string, description string, fn func(string, ...string) error) *Command {
+func (p *Parser) SetHelp(name string, description string, fn CommandFunction) *Command {
 	command := newCommand(&p.Command, name, description, fn)
 	p.help = *command
 	return command
@@ -79,7 +85,7 @@ func (p *Parser) SetHelp(name string, description string, fn func(string, ...str
 //First level execution when parsing. The passed function is exectued taking the leftovers until the first command
 //./prog -switch left1 left2 command
 //in this case name will be prog, and left overs left1 and left2
-func (p *Parser) OnCommand(fn func(name string, leftOvers ...string) error) {
+func (p *Parser) OnCommand(fn CommandFunction) {
 	p.fn = fn
 }
 
@@ -92,8 +98,6 @@ func (p Parser) Help() Command {
 	return p.help
 }
 
-type CommandFunction func(string, ...string) error
-
 //NewParser constructs a parser for program name given
 func NewParser(program string) *Parser {
 	parser := &Parser{
@@ -104,7 +108,7 @@ func NewParser(program string) *Parser {
 	return parser
 }
 
-func defaultHelp(p *Parser) func(string, ...string) error {
+func defaultHelp(p *Parser) CommandFunction {
 	return func(help string, args ...string) error {
 		if len(args) > 0 {
 			if cmd, ok := p.Commands[args[0]]; ok {
@@ -130,7 +134,7 @@ func defaultHelp(p *Parser) func(string, ...string) error {
 //              fmt.Printf("%v \n",arg)
 //      }
 //}
-func (p *Parser) AddCommand(name string, description string, fn func(string, ...string) error) *Command {
+func (p *Parser) AddCommand(name string, description string, fn CommandFunction) *Command {
 	if _, exists := p.Commands[name]; exists {
 		panic(fmt.Sprintf("Command '%s' already exists ", name))
 	}
@@ -150,7 +154,7 @@ func (p *Parser) AddCommand(name string, description string, fn func(string, ...
 // func setPath(option,value string){
 //      printf("According the option %v the path is set to %v",option,value);
 //}
-func (c *Command) AddOption(long string, short string, description string, fn func(string, string) error) *Flag {
+func (c *Command) AddOption(long string, short string, description string, fn FlagFunction) *Flag {
 	flag := buildFlag(long, short, description, fn, Option)
 	c.addFlag(flag)
 	return flag
@@ -165,7 +169,7 @@ func (c *Command) AddOption(long string, short string, description string, fn fu
 // func setVerbose(switch string){
 //      printf("I'm get to get quite talkative! I'm set to be %v ",switch);
 //}
-func (c *Command) AddSwitch(long string, short string, description string, fn func(string, string) error) *Flag {
+func (c *Command) AddSwitch(long string, short string, description string, fn FlagFunction) *Flag {
 	flag := buildFlag(long, short, description, fn, Switch)
 	c.addFlag(flag)
 	return flag
@@ -293,7 +297,7 @@ func (c Command) callFlags(flagsToCall []flagCallable) error {
 }
 
 //convinience lambda to pass the flag function around
-func flagFunction(name, value string, fn func(string, string) error) func() error {
+func flagFunction(name, value string, fn FlagFunction) func() error {
 	return func() error { return fn(name, value) }
 }
 
@@ -413,7 +417,7 @@ func checkDefinition(flag string) bool {
 }
 
 //builds the flag struct panicking if errors are encountered
-func buildFlag(long string, short string, desc string, fn func(string, string) error, kind FlagType) *Flag {
+func buildFlag(long string, short string, desc string, fn FlagFunction, kind FlagType) *Flag {
 	long = strings.Trim(long, " ")
 	short = strings.Trim(short, " ")
 	if len(long) == 0 {
