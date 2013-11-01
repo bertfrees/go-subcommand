@@ -117,9 +117,11 @@ func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 			}
 
 		} else { //command or leftover
-			//call the flags
-			if err = currentCommand.callFlags(flagsToCall); err != nil {
-				return
+			//call the flags (make sure we call it just once
+			if len(leftOvers) == 0 {
+				if err = currentCommand.callFlags(flagsToCall); err != nil {
+					return
+				}
 			}
 
 			cmd, isCommand := p.Commands[arg]
@@ -168,7 +170,7 @@ func (c Command) exec(leftOvers []string) error {
 	arity := c.Arity().Count
 	//check correct number of params
 	if arity != -1 && arity != len(leftOvers) {
-		return fmt.Errorf("Command %s accepts %v parameters but %v found (%v)",
+		return c.errorf("Arity: Command %s accepts %v parameters but %v found (%v)",
 			c.Name, arity, len(leftOvers), leftOvers)
 
 	}
@@ -221,13 +223,13 @@ func (c Command) parseFlag(args []string, pos int) (callable flagCallable, newPo
 	}
 	//not present
 	if !ok {
-		err = fmt.Errorf("%v is not a valid flag for %v", arg, c.Name)
+		err = c.errorf("%v is not a valid flag for %v", arg, c.Name)
 		return
 	}
 
 	if opt.Type == Option { //option
 		if pos+1 >= len(args) {
-			err = fmt.Errorf("No value for option %v", arg)
+			err = c.errorf("No value for option %v", arg)
 			return
 		}
 		fn = flagFunction(opt.Long, args[pos+1], opt.fn)
@@ -251,11 +253,15 @@ func checkVisited(visited []flagCallable, command Command) error {
 				}
 			}
 			if !ok {
-				return fmt.Errorf("%v was not found and is mandatory for %v", flag, command)
+				return command.errorf("%v was not found and is mandatory for %v", flag, command)
 			}
 		}
 	}
 	return nil
+}
+
+func (c Command) errorf(format string, args ...interface{}) ParsingError {
+	return ParsingError{fmt.Sprintf(format, args...), c}
 }
 
 //Help printing functions

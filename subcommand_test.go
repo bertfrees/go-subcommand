@@ -459,6 +459,19 @@ func TestPostFlags(t *testing.T) {
 	}
 }
 
+func TestPostFlagsCheckTwice(t *testing.T) {
+	parser := NewParser("test")
+	parser.PostFlags(func() error {
+		parser.AddCommand("command", "", func(string, ...string) error {
+			return nil
+		})
+		return nil
+	})
+	_, err := parser.Parse([]string{"arg", "command"})
+	if err == nil {
+		t.Errorf("Expected error")
+	}
+}
 func TestArityCommandInf(t *testing.T) {
 	parser := NewParser("test")
 	proc := false
@@ -539,6 +552,15 @@ func TestArityParser(t *testing.T) {
 	_, err := parser.Parse([]string{"parserArg", "command", "arg1", "arg2"})
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
+	}
+}
+
+func TestUnknownCommand(t *testing.T) {
+	parser := NewParser("test")
+	//multiple args arity by default
+	_, err := parser.Parse([]string{"parserArg"})
+	if err == nil {
+		t.Errorf("Unknown command didnt error", err)
 	}
 }
 
