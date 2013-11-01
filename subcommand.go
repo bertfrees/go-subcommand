@@ -14,7 +14,6 @@ type Command struct {
 	//Name
 	Name            string
 	Description     string //Command help line
-	Params          string //Description of the parameters
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
 	fn              CommandFunction
@@ -53,7 +52,7 @@ func newCommand(parent *Command, name string, description string, fn CommandFunc
 		postFlagsFn:     func() error { return nil },
 		Description:     description,
 		parent:          parent,
-		arity:           Arity{-1, "arg1,arg2,..."},
+		arity:           Arity{-1, "arg1 arg2 ..."},
 	}
 }
 

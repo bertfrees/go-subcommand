@@ -27,13 +27,10 @@ func (p *Parser) OnCommand(fn CommandFunction) {
 	p.fn = fn
 }
 
+//Execute this function once the flags have been consumed. This can be used to dinamically
+//add commands depending on the flags' state
 func (p *Parser) PostFlags(fn func() error) {
 	p.postFlagsFn = fn
-}
-
-//Returns the help command
-func (p Parser) Help() Command {
-	return p.help
 }
 
 //NewParser constructs a parser for program name given
@@ -43,23 +40,8 @@ func NewParser(program string) *Parser {
 		Commands: make(map[string]*Command),
 	}
 	parser.Command.arity = Arity{0, ""}
-	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(parser))
+	parser.SetHelp("help", fmt.Sprintf("Type %v help [command] for detailed information about a command", program), defaultHelp(*parser))
 	return parser
-}
-
-func defaultHelp(p *Parser) CommandFunction {
-	return func(help string, args ...string) error {
-		if len(args) > 0 {
-			if cmd, ok := p.Commands[args[0]]; ok {
-				visitCommand(*cmd)
-				return nil
-			} else {
-				fmt.Printf("help: command not found %v\n", args[0])
-			}
-		}
-		visitParser(*p)
-		return nil
-	}
 }
 
 //AddCommand inserts a new subcommand to the parser. The callback fn receives as first argument
@@ -260,35 +242,7 @@ func checkVisited(visited []flagCallable, command Command) error {
 	return nil
 }
 
+//convinience for creating parsing errors
 func (c Command) errorf(format string, args ...interface{}) ParsingError {
 	return ParsingError{fmt.Sprintf(format, args...), c}
-}
-
-//Help printing functions
-func visitParser(p Parser) {
-	fmt.Printf("Usage: %v [global_options] command [arguments]\n", p.Name)
-	fmt.Printf("\n")
-	fmt.Printf("Global Options\n")
-	fmt.Printf("--------------\n")
-	fmt.Printf("\n")
-	for _, flag := range p.Flags() {
-		fmt.Printf("\t%v\n", flag)
-	}
-	fmt.Printf("Commands\n")
-	fmt.Printf("--------\n")
-	fmt.Printf("\n")
-	for _, cmd := range p.Commands {
-		fmt.Printf("\t%v\t\t%v\n", cmd.Name, cmd.Description)
-	}
-
-	fmt.Printf("\n")
-	fmt.Printf("\t%v\t\t%v\n", p.help.Name, p.help.Description)
-}
-
-func visitCommand(c Command) {
-	fmt.Printf("%v\t\t%v\n", c.Name, c.Description)
-	fmt.Printf("\n")
-	for _, flag := range c.Flags() {
-		fmt.Printf("\t%v\n", flag)
-	}
 }
