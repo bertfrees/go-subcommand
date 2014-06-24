@@ -61,12 +61,7 @@ func defaultHelp(p Parser) CommandFunction {
 			tempText = PARSER_HELP_TEMPLATE
 			element = &p
 		}
-		tmpl, err := template.New("").Funcs(funcMap).Parse(tempText)
-		if err != nil {
-			//this is serious stuff panic!!
-			println(err.Error())
-			panic("Error compiling help template")
-		}
+		tmpl := template.Must(template.New("").Funcs(funcMap).Parse(tempText))
 		return tmpl.Execute(output, element)
 	}
 }
