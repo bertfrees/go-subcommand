@@ -16,6 +16,7 @@ type Command struct {
 	Description     string //Command help line
 	innerFlagsLong  map[string]*Flag
 	innerFlagsShort map[string]*Flag
+	orderedFlags    []*Flag //so we keep the order of the flags
 	fn              CommandFunction
 	postFlagsFn     func() error
 	parent          *Command
@@ -31,7 +32,7 @@ type Flagged interface {
 func (c *Command) Flags() []Flag {
 	//return c.Name
 	flags := make([]Flag, 0)
-	for _, val := range c.innerFlagsLong {
+	for _, val := range c.orderedFlags {
 		flags = append(flags, *val)
 	}
 
@@ -113,6 +114,7 @@ func (c *Command) addFlag(flag *Flag) {
 		panic(fmt.Errorf("Flag '%s' already exists ", flag.Short))
 	}
 	c.innerFlagsLong[flag.Long] = flag
+	c.orderedFlags = append(c.orderedFlags, flag)
 	if flag.Short != "" {
 		c.innerFlagsShort[flag.Short] = flag
 	}

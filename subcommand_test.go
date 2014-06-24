@@ -564,6 +564,24 @@ func TestUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestOrderedFlags(t *testing.T) {
+	name := "com"
+	opts := []string{"zero", "one", "two", "three"}
+
+	parser := NewParser("test")
+	command := parser.AddCommand(name, "", emptyFnMult)
+	for _, o := range opts {
+		command.AddOption(o, "", "", emptyFn)
+	}
+	flags := command.Flags()
+	for idx, flag := range flags {
+		if flag.Long != opts[idx] {
+			t.Errorf("Flags are nor returned in order %v!=%v", opts[idx], flag.Long)
+		}
+	}
+
+}
+
 //func TestDefaultPrinter(t *testing.T) {
 //parser := NewParser("test")
 //parser.AddSwitch("switch", "s", "\tThis is a global switch", func(string,string) {
