@@ -235,7 +235,7 @@ func checkVisited(visited []flagCallable, command Command) error {
 				}
 			}
 			if !ok {
-				return command.errorf("%v was not found and is mandatory for %v", flag, command)
+				return command.errorf("option/switch --%v is mandatory for command %v", flag.Long, command.Name)
 			}
 		}
 	}
