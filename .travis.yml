@@ -1,8 +1,7 @@
 language: go
-go:
-        - tip
 
 install:
+        - go get code.google.com/p/go.tools/cmd/cover
         - go get github.com/mattn/goveralls
         - go build github.com/mattn/goveralls
 script:
