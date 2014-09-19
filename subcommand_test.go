@@ -2,6 +2,7 @@ package subcommand
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -474,9 +475,7 @@ func TestPostFlagsCheckTwice(t *testing.T) {
 }
 func TestArityCommandInf(t *testing.T) {
 	parser := NewParser("test")
-	proc := false
 	parser.AddCommand("command", "", func(string, ...string) error {
-		proc = true
 		return nil
 	})
 	//multiple args arity by default
@@ -488,9 +487,7 @@ func TestArityCommandInf(t *testing.T) {
 
 func TestArityCommandZero(t *testing.T) {
 	parser := NewParser("test")
-	proc := false
 	parser.AddCommand("command", "", func(string, ...string) error {
-		proc = true
 		return nil
 	}).SetArity(0, "")
 	//zero params ok
@@ -508,9 +505,7 @@ func TestArityCommandZero(t *testing.T) {
 
 func TestArityCommandOther(t *testing.T) {
 	parser := NewParser("test")
-	proc := false
 	parser.AddCommand("command", "", func(string, ...string) error {
-		proc = true
 		return nil
 	}).SetArity(2, "arg1 arg2")
 	//two params ok
@@ -528,9 +523,7 @@ func TestArityCommandOther(t *testing.T) {
 
 func TestArityParserErr(t *testing.T) {
 	parser := NewParser("test")
-	proc := false
 	parser.AddCommand("command", "", func(string, ...string) error {
-		proc = true
 		return nil
 	})
 	//zero arity by default
@@ -543,9 +536,7 @@ func TestArityParserErr(t *testing.T) {
 func TestArityParser(t *testing.T) {
 	parser := NewParser("test")
 	parser.SetArity(-1, "parg1 parg2 ...")
-	proc := false
 	parser.AddCommand("command", "", func(string, ...string) error {
-		proc = true
 		return nil
 	})
 	//multiple args arity by default
@@ -578,6 +569,25 @@ func TestOrderedFlags(t *testing.T) {
 		if flag.Long != opts[idx] {
 			t.Errorf("Flags are nor returned in order %v!=%v", opts[idx], flag.Long)
 		}
+	}
+
+}
+
+func TestArityCheck(t *testing.T) {
+	parser := NewParser("test")
+	lefts := []string{"cosa"}
+	c := Command{Name: "cmd"}
+	c.SetArity(0, "")
+	err := c.exec(lefts, *parser)
+	if err == nil {
+		t.Error("Expected error not returned")
+	}
+	if !strings.Contains(err.Error(), "Arity") {
+		t.Error("Arity error not controled")
+	}
+	err = parser.exec(lefts, *parser)
+	if strings.Contains(err.Error(), "Arity") {
+		t.Error("Parser shouldn't complain about arity")
 	}
 
 }

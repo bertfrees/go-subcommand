@@ -137,7 +137,7 @@ func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 		}
 	}
 	//call current command
-	if err = currentCommand.exec(leftOvers); err != nil {
+	if err = currentCommand.exec(leftOvers, *p); err != nil {
 		return
 	}
 	//look for next command
@@ -148,12 +148,17 @@ func (p *Parser) parse(args []string, currentCommand Command) (err error) {
 }
 
 //Execute the command function with leftovers as parameters
-func (c Command) exec(leftOvers []string) error {
+func (c Command) exec(leftOvers []string, p Parser) error {
 	arity := c.Arity().Count
 	//check correct number of params
 	if arity != -1 && arity != len(leftOvers) {
-		return c.errorf("Arity: Command %s accepts %v parameters but %v found (%v)",
-			c.Name, arity, len(leftOvers), leftOvers)
+		if c.Name == p.Command.Name {
+			return c.errorf("%v: subcommand not found %v",
+				c.Name, leftOvers[0])
+		} else {
+			return c.errorf("Arity: Command %s accepts %v parameters but %v found (%v)",
+				c.Name, arity, len(leftOvers), leftOvers)
+		}
 
 	}
 	if err := c.fn(c.Name, leftOvers...); err != nil {
